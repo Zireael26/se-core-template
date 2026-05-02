@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# SE Core canonical commit-msg.
+# Runs commitlint if installed; skips gracefully otherwise.
+
+set -e
+
+command -v node >/dev/null 2>&1 || { echo "[commit-msg] node unavailable; skipping"; exit 0; }
+
+if [ -x ./node_modules/.bin/commitlint ]; then
+  ./node_modules/.bin/commitlint --edit "$1"
+else
+  echo "[commit-msg] commitlint not installed - skipping conventional-commits check"
+fi

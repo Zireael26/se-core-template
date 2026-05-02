@@ -1,0 +1,697 @@
+# SE Core — engineering process manual
+
+**Owner:** __MAINTAINER_NAME__ (solo maintainer)
+**Status:** Authoritative. Updates only via PR against `__SE_CORE_PATH__/`.
+**Last revised:** 2026-04-24
+
+This is the single human-readable source of truth for how engineering is done under the Software Engineering Core regime. Everything elaborated here is grounded in the machinery that already exists in `__SE_CORE_PATH__/` — specs in `core-rules/`, canonical hooks in `core-rules/hooks/`, the project list in `registry.md`, and the scheduled audits in `scheduled-tasks/`. This manual narrates and connects them; it does not duplicate them. When a section points at a sibling file, that file is the deep dive.
+
+---
+
+## Table of contents
+
+1. [Introduction](#1-introduction)
+2. [Philosophy](#2-philosophy)
+3. [The control plane](#3-the-control-plane)
+4. [Project regime](#4-project-regime)
+5. [Hook enforcement](#5-hook-enforcement)
+6. [Git workflow](#6-git-workflow)
+7. [Definition of done](#7-definition-of-done)
+8. [Code quality standards](#8-code-quality-standards)
+9. [Documentation standards](#9-documentation-standards)
+10. [Onboarding a new project](#10-onboarding-a-new-project-full-playbook)
+11. [Scheduled audits & the feedback loop](#11-scheduled-audits--the-feedback-loop)
+12. [Incident response & rollback](#12-incident-response--rollback)
+13. [Secrets & dependency management](#13-secrets--dependency-management)
+14. [Evolving SE Core](#14-evolving-se-core)
+15. [Glossary & quick reference](#15-glossary--quick-reference)
+
+---
+
+## 1. Introduction
+
+### What SE Core is
+
+Software Engineering Core (SE Core) is a shared engineering-process regime that a set of opt-in personal projects inherit from. It lives in `__SE_CORE_PATH__/` and manifests in each registered project as:
+
+- A `.claude/rules/se-core.md` symlink pointing at the canonical parent rules (LLM-facing).
+- Nine canonical hooks deployed under `.claude/hooks/` that enforce the rules mechanically at tool-use time.
+- Weekly and monthly audits that scan every registered project for drift and write reports to `__SE_CORE_PATH__/audits/`.
+
+The goal: shared high standards across projects without hand-enforcing them per session.
+
+### Why this manual exists
+
+The specs (`core-rules/CLAUDE.md`, `hooks.md`, `inheritance.md`) are terse and LLM-optimized. They tell Claude *what* to enforce. They don't explain *why*, don't narrate the workflow end-to-end, and don't give a human reader (you, your future self, or a collaborator) a single place to ramp on the whole regime. This manual fills that gap.
+
+### Audience
+
+- **You (__MAINTAINER_NAME__)** — when you need to remember what the policy is, when you need to decide whether a pattern should be lifted into the parent, or when you're about to change something about the process.
+- **Your LLM collaborators** — Claude sessions (interactive and headless), Claude Code, Cowork — already load `core-rules/CLAUDE.md` via the inheritance mechanism. This manual is a companion for human-readable context that can be referenced on demand.
+- **Future contributors** — if SE Core ever has other humans working inside it, this is the doc that onboards them.
+
+### Scope
+
+SE Core covers engineering process for *personal* projects under `__PROJECTS_ROOT__/`. Work projects, client engagements, and throwaway experiments are out of scope — this regime is opinionated, prescriptive, and designed around solo-dev-with-high-standards dynamics. If a project opts into SE Core it commits to the whole stack; partial adoption is not supported.
+
+---
+
+## 2. Philosophy
+
+Five principles the manual comes back to:
+
+**1. Parent/child layered rules, Rule of Three for promotion.** Cross-cutting rules live in the parent (`core-rules/CLAUDE.md` + `hooks.md`). Project-specific rules live in each project's own `CLAUDE.md`. A rule earns parent status only when three independent projects adopt it; n=2 is the danger zone where you lock in the wrong abstraction. Candidates waiting for their third witness live in `core-rules/deferred.md`. See [§14](#14-evolving-se-core).
+
+**2. Process is code.** Every rule that can be mechanically enforced becomes a hook. Hooks fail closed (block the agent or fail the build). Written rules that depend on good intentions erode in under a month; written rules backed by a hook persist until the hook is deleted. See [§5](#5-hook-enforcement).
+
+**3. Receipts over self-reporting.** "Done" means you attach the verification command, the exit code, and the diff lines that prove the change. "It works" without receipts is not done. The `stop-verify` hook enforces the underlying checks; the presentation discipline is on the agent. See [§7](#7-definition-of-done).
+
+**4. Small surface, deep discipline.** The parent layer is intentionally small: <5 KB for `core-rules/CLAUDE.md`, nine canonical hooks, seven scheduled audits. Anything broader than that belongs in a project-local file. This keeps the contract legible and the drift surface narrow. See [§3](#3-the-control-plane).
+
+**5. Headless-safe by default.** Every mechanism in the regime must work identically in interactive sessions and in `claude -p` headless runs (scheduled tasks, cron jobs, subagents, CI). The primary inheritance path is a symlink under `.claude/rules/` specifically because `@`-imports are gated by trust prompts that silently drop in headless mode. See [§4.2](#42-inheritance-symlink--import) and `core-rules/inheritance.md`.
+
+---
+
+## 3. The control plane
+
+Everything that defines and evolves SE Core lives in `__SE_CORE_PATH__/`:
+
+```
+se-core/
+├── engineering-process.md          ← you are here
+├── registry.md                     ← active projects opt-in list
+├── blacklist.md                    ← temporary exemptions
+├── recon.md                        ← LIFT/LEAVE/DEFER thesis doc (history)
+├── core-rules/
+│   ├── CLAUDE.md                   ← parent rules (LLM-facing, inherited)
+│   ├── hooks.md                    ← three-tier hook spec
+│   ├── inheritance.md              ← symlink + @-import mechanism spec
+│   ├── deferred.md                 ← n=1 candidates awaiting third witness
+│   ├── hooks/                      ← canonical .sh implementations
+│   └── templates/                  ← context-log.md, gotchas.md seeds
+├── scheduled-tasks/                ← weekly/monthly audit prompt sources
+└── audits/                         ← dated output of every audit run
+```
+
+**Read-repeatedly files** (the contract):
+- `engineering-process.md` (this doc)
+- `core-rules/CLAUDE.md`, `core-rules/hooks.md`, `core-rules/inheritance.md`
+- `registry.md`, `blacklist.md`
+
+**Write-infrequently files** (the evolution loop):
+- `core-rules/deferred.md` — modified when a new candidate rule appears or a third witness promotes one.
+- `audits/YYYY-MM-DD-*.md` — write-only; scheduled tasks append; remediation tracked elsewhere.
+
+**Read-once-for-history files**:
+- `recon.md` — the thesis doc that drove the original lift/leave/defer classification. Don't rewrite it; its value is the historical record of *why* the parent layer looks the way it does.
+
+---
+
+## 4. Project regime
+
+### 4.1 What "active under SE Core" means
+
+A project is active under SE Core if and only if it appears in `registry.md` and not in `blacklist.md`. Active projects are:
+
+- Required to carry the canonical hooks, symlink, and `CLAUDE.md` files (see [§10](#10-onboarding-a-new-project-full-playbook) for the checklist).
+- Automatically included in every scheduled audit run (see [§11](#11-scheduled-audits--the-feedback-loop)).
+- Subject to the commit / PR / merge rules in [§6](#6-git-workflow).
+
+`registry.md` is the authoritative list of active projects. Resolve against the registry — do not rely on any count or roster hardcoded elsewhere (including in this manual). When a project is added or removed, `registry.md` changes; nothing else needs to.
+
+### 4.2 Inheritance (symlink + @-import)
+
+Claude Code does **not** cascade `CLAUDE.md` up the directory tree. Inheritance is explicit, via two mechanisms with different trust profiles:
+
+**Primary — `.claude/rules/se-core.md` symlink.** Files under `.claude/rules/` load unconditionally at session start, in interactive *and* headless modes. This is the only inheritance path that's load-bearing. Required for every registered project. Track the symlink in git (add `.gitignore` exceptions if `.claude/` is broadly ignored).
+
+**Secondary — `@`-import in project `CLAUDE.md`.** `@__SE_CORE_PATH__/core-rules/CLAUDE.md` on line 2 of each project's `CLAUDE.md`. Belt-and-braces redundancy in interactive mode. Trust-prompt-gated and silently drops in headless mode, so it must never be treated as primary.
+
+If either mechanism breaks, Claude Code drops the instruction silently — no error, no warning. The `parent-hook-drift` audit catches drift; the `cross-project-process-audit` catches missing symlinks. See `core-rules/inheritance.md` for silent-drop invariants and the registered-project checklist.
+
+### 4.3 Registering / blacklisting
+
+To add a project: follow [§10](#10-onboarding-a-new-project-full-playbook).
+
+To temporarily exempt a project: move its row to `blacklist.md` with a reason and a revisit date. The `bypass-tripwire` and `cross-project-process-audit` skip blacklisted projects. Don't delete the row from `registry.md` — preserve the history of "this project was active once."
+
+To permanently deregister: delete the row from `registry.md` and note the reason in the commit message. Rare — blacklisting is almost always the right move instead.
+
+---
+
+## 5. Hook enforcement
+
+Full spec: `core-rules/hooks.md`. Summary follows.
+
+### 5.1 Three-tier architecture
+
+| Tier | When it runs | Budget | Purpose |
+|---|---|---|---|
+| **Tier 1 — fast-local** | Every relevant tool call | ≤ 3s | Sub-second feedback loops; PreToolUse / PostToolUse hooks. |
+| **Tier 2 — heavy-gated** | On turn wrap-up (`Stop` event) | ≤ 90s | Catch "claimed done but isn't" before the turn ends. |
+| **Tier 3 — git-boundary** | On commit / push (husky) | Project-local | Last-line defense if tier 1/2 misfired. |
+
+Tier 1 and 2 are Claude Code hooks (JSON return, exit code 0/2 semantics). Tier 3 is husky + lint-staged + commitlint, standard git machinery.
+
+### 5.2 The nine canonical hooks
+
+| Script | Tier | Event | Responsibility |
+|---|---|---|---|
+| `block-destructive.sh` | 1 | PreToolUse (Bash) | Deny `rm -rf /`, force-push, hard-reset, DB DROP, `.env` reads. |
+| `post-edit-verify.sh` | 1 | PostToolUse (Write/Edit/MultiEdit) | Per-file lint (eslint/ruff/clippy/golangci-lint). Block on fail. |
+| `truncation-check.sh` | 1 | PostToolUse (Grep/Bash/Read) | Warn when tool output ≥50K chars or truncation marker present. |
+| `session-context.sh` | 1 | SessionStart (startup/resume) | Inject branch, last commits, dirty-file count, pending gotchas. |
+| `save-context-log.sh` | 1 | PreCompact | Persist session state to `context-log.md`. |
+| `post-compact-context.sh` | 1 | SessionStart (compact) | Restore `context-log.md` into context after auto-compact. |
+| `stop-verify.sh` | 2 | Stop | Block if todos open, run typecheck + lint + fast tests. |
+| `code-review-subagent.sh` | 2 | Stop (edit-heavy) | Dispatch a code-review subagent on the diff; findings must resolve or defer. |
+| `ui-verify.sh` | 2 | Stop (UI diff) | Spin up dev server, take screenshot, attach. |
+
+All are version-controlled at `core-rules/hooks/`. Projects deploy by copying into `.claude/hooks/` and wiring into `.claude/settings.json` using `$CLAUDE_PROJECT_DIR` paths (never hardcoded project paths — rename-proofing).
+
+### 5.3 Project overrides
+
+Projects can override:
+- Per-file linter command (`post-edit-verify`)
+- Typecheck/lint/test commands (`stop-verify`, `pre-push`)
+- Edit-heavy threshold (`code-review-subagent`)
+- UI file glob + dev-server port/regex (`ui-verify`)
+- Commit scope allowlist (`commit-msg`)
+
+Overrides live in each project's `.claude/hooks/config.sh`. The canonical `.sh` files themselves are never edited per-project — drift from canonical is what `parent-hook-drift` catches.
+
+### 5.4 Guarantees
+
+- **Rename-proof.** Hooks use `$CLAUDE_PROJECT_DIR` (injected by Claude Code), never hardcoded project paths. Verified across all five projects post-rename on 2026-04-24.
+- **Headless-safe.** Every hook works identically in `claude -p` runs and scheduled tasks.
+- **Fail closed.** A failed hook blocks; it never logs-and-continues.
+
+---
+
+## 6. Git workflow
+
+### 6.1 Branching model
+
+**Trunk-based with short-lived feature branches.** `main` is the only long-lived branch. Work happens on feature branches named `<type>/<short-slug>` (e.g., `feat/avatar-rig`, `fix/cloth-sim-crash`, `chore/upgrade-next-15`). Feature branches live ≤ 5 working days; older branches either merge or get abandoned.
+
+No `develop`. No `release/*`. No `hotfix/*`. If you need a pre-production branch for a specific reason (integration testing, staged release), create it, merge what you need, delete it when done.
+
+### 6.2 Commit conventions
+
+**[Conventional Commits](https://www.conventionalcommits.org/)** enforced by `commit-msg` hook (`@commitlint/config-conventional`).
+
+Allowed types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `perf`, `build`, `ci`, `revert`.
+
+**Scopes are optional and opt-in per project.** Projects that define a scope allowlist (e.g., Project-A's 16 package names) enforce that allowlist. Projects that don't, accept unscoped commits. Never invent a scope ad-hoc.
+
+Examples:
+```
+feat: add avatar rotation gesture
+fix(wardrobe): reset zoom after outfit swap
+chore: bump pnpm lockfile to v2
+```
+
+Commit bodies are optional. When present, use them for *why*, not for *what* (the diff is the *what*). Footers for `BREAKING CHANGE:`, `Refs: #123`, `Co-authored-by:`.
+
+### 6.3 PR flow
+
+**Every change to `main` goes through a PR.** No exceptions under normal conditions. Direct push to `main` is blocked at three layers:
+
+1. Local `pre-push` hook (husky) — refuses direct push to `main`/`master`. Override: `SE_CORE_ALLOW_MAIN_PUSH=1 git push` (use almost never, document every use in the project's `gotchas.md` or commit trailer).
+2. GitHub branch protection — require PR, require passing status checks, require linear history / squash-merge.
+3. Convention — you know better.
+
+Review model for sole-maintainer projects: **self-review discipline + CI gates**. GitHub blocks self-approval so "reviewed by = merged by" is structurally prevented, but the review happens:
+- When you open the PR, write the description as if explaining to a stranger. If it's hard to write, the change is too big or too unclear — split it.
+- Wait at least one session (≥ 30 minutes; overnight is better) before merging. Re-read the diff with fresh eyes. Non-trivial changes benefit from a code-review subagent pass via the Agent tool.
+- CI must be green. Status checks required at the branch protection level.
+- Merge style: **squash and merge** by default, preserving the PR title as the merge commit message. Rebase-merge for PRs that legitimately contain multiple semantically distinct commits.
+
+### 6.4 Branch protection
+
+Every SE Core project must have branch protection on `main`:
+- Require pull requests before merging.
+- Require status checks to pass (CI: install → lint → typecheck → unit tests → build).
+- Require linear history (enforces squash/rebase merge).
+- Do not allow force pushes to `main`.
+- Do not allow deletions.
+
+Review-count rules are N/A for sole-maintainer orgs (GitHub's self-approval block means any required-review setting = undeployable). The local `pre-push` guard + CI + the PR window are the functional gate.
+
+### 6.5 History hygiene
+
+- **Squash-merge by default** — one commit per PR on `main`. The PR title is the commit message.
+- **No merge commits on `main`** — linear history only. Rebase feature branches before opening PR if they're behind.
+- **Don't amend published commits** without force-with-lease on the feature branch. Never force-push `main` under any condition (blocked anyway).
+- **`git revert` over `git reset`** for rolling back merged work. Preserves history.
+
+---
+
+## 7. Definition of done
+
+A change is done when all of the following are true:
+
+1. **Receipts attached.** The response that claims done includes: the verification command(s) run, their exit codes, and the diff lines (or a summary pointing at the PR) that prove the change. "It works" without receipts is not done.
+2. **Todos closed.** If `TodoWrite` has `in_progress` or `pending` items, the turn is not done. Complete them, defer with reason, or abandon with reason. `stop-verify` enforces this.
+3. **Typecheck + lint + fast tests green.** Enforced by `stop-verify` at turn end and by `pre-push` at git boundary.
+4. **Code review resolved.** On edit-heavy turns (≥ 3 files or ≥ 200 lines), the `code-review-subagent` runs. Findings either get fixed or explicitly acknowledged and deferred.
+5. **Visual verification for UI.** For any diff touching UI files, `ui-verify` has run and attached a screenshot. Logically verified is not visually verified.
+
+Done is a property of the *turn* that claimed done, not of the project. Turn-level done compounds into project-level correctness; don't skip the turn-level gate on the theory that a later turn will catch it.
+
+---
+
+## 8. Code quality standards
+
+Full expression in `core-rules/CLAUDE.md`. Summary:
+
+### 8.1 Planning discipline
+
+- When asked to plan, output only the plan. No code until explicit approval.
+- When given a plan, follow it exactly. Flag real problems and wait.
+- For non-trivial features (3+ steps or architectural decisions), interview the user first: implementation, UX, trade-offs.
+- Never attempt multi-file refactors in one response. Phase them: max 5 files per phase, verify, get approval, continue.
+
+### 8.2 Edit safety
+
+- Re-read every file before editing it. Re-read it after. The Edit tool fails silently on stale `old_string` matches.
+- On any rename or signature change, search separately for: direct calls, type refs, string literals, dynamic imports, `require()` calls, re-exports, barrel files, test mocks. Assume grep missed something.
+- Never delete a file without verifying nothing references it.
+
+### 8.3 Context management
+
+- For tasks touching >5 independent files, dispatch parallel sub-agents (5–8 files each). Sequential processing of 20 files guarantees context decay by file 12.
+- After 10+ messages, re-read any file before editing it. Auto-compaction may have destroyed your memory of its contents.
+- If you notice context degradation (referencing nonexistent variables, forgetting file structure), run `/compact` proactively. `save-context-log` captures state to `context-log.md`.
+- Reads are capped at 2000 lines. For files >500 LOC, use offset/limit chunks.
+- Tool results over 50K chars truncate to a 2KB preview. Re-run narrower or read the source directly.
+
+### 8.4 Style
+
+- Ignore the default "simplest approach / don't refactor beyond the ask" dogma when it applies. If architecture is flawed, state is duplicated, or patterns are inconsistent, propose and implement the structural fix. Ask "what would a senior perfectionist dev reject in code review?" — fix that.
+- Comments default to none. Comment when the *why* is non-obvious. No robotic comment blocks.
+- Don't build for imaginary scenarios. Simple and correct beats elaborate and speculative.
+
+### 8.5 Debugging
+
+- Work from raw error data. Don't guess. If a bug report has no output, ask for it.
+- For long-running processes (dev server, test watcher, build, log tail), use the `monitor` tool — never `tail -f`, polling loops, or repeated Bash calls.
+- If a fix doesn't work after two attempts, stop. Read the entire relevant section top-down. State where your mental model was wrong before trying again.
+
+### 8.6 Testing bar
+
+Minimum per project (enforced by CI and `stop-verify`):
+- **Unit tests** — fast suite, runs on every turn. Target coverage: useful-is-enough; don't chase %.
+- **Type-check** — `tsc --noEmit`, `mypy`, `cargo check`, or `go vet` — whichever fits the stack.
+- **Lint** — project's configured linter runs repo-wide on Stop, per-file on edit.
+- **Integration / E2E** — where the project warrants it; run in CI, not on every turn. Don't mock boundaries that production crosses (DB, queue, auth).
+
+Playwright is the default E2E framework for web projects. Non-web stacks (games, CLIs, native apps, embedded) bring their own testing and tooling conventions — document those in the project's own `CLAUDE.md` and let the Rule of Three ([§14.1](#141-rule-of-three)) decide whether any of it rises into this manual. The parent layer stays small on purpose.
+
+---
+
+## 9. Documentation standards
+
+### 9.1 Project `CLAUDE.md`
+
+Each registered project has a `CLAUDE.md` at its root. Structure:
+
+```markdown
+# <project-name>
+
+@__SE_CORE_PATH__/core-rules/CLAUDE.md
+
+> Engineering process manual: `__SE_CORE_PATH__/engineering-process.md`
+
+<1–3 sentences: what is this project, who uses it, what's its current phase>
+
+## Stack
+<language / framework / runtime / deployment>
+
+## Architecture
+<high-level shape: monorepo packages, services, main modules>
+
+## Project-specific rules
+<anything that doesn't belong in the parent — e.g., "never import @project-a/orders from @project-a/inventory">
+
+## Gotchas
+<pointer to gotchas.md + any highlights worth surfacing>
+
+## Running locally
+<commands: install, dev, test, build>
+```
+
+Target size: **< 5 KB**. Bloat pushes signal out of context. Long reference material goes in sibling files and gets linked.
+
+### 9.2 README.md
+
+Project-level README is for *humans landing on the repo for the first time*. Orthogonal to `CLAUDE.md`.
+
+```markdown
+# <project-name>
+
+<one-line tagline>
+
+<one-paragraph what/why>
+
+## Requirements
+<node version, pnpm, docker, etc.>
+
+## Quick start
+<the 3-5 commands that get someone productive>
+
+## Documentation
+<links to deeper docs if any>
+
+## License
+<license name + year>
+```
+
+### 9.3 gotchas.md
+
+Every project maintains a `gotchas.md` at the root. Purpose: log every *correction* the user gives you, every surprising discovery, every "turns out this library does X." Format per entry:
+
+```markdown
+## <YYYY-MM-DD> — <short title>
+**Context:** <where this bit us>
+**Gotcha:** <what actually happens>
+**Rule:** <what to do about it>
+```
+
+Read at session start (`session-context` hook surfaces pending items). Reviewed monthly by the `gotchas-rollup` audit, which clusters entries and applies the Rule of Three — n≥3 similar entries promotes to `CLAUDE.md`, n=2 queues in `deferred.md`.
+
+### 9.4 context-log.md
+
+Hook-managed (`save-context-log` writes on `PreCompact`, `post-compact-context` re-injects on resume). Don't edit by hand. Don't commit to `main` — it's a local working file. Gitignored in every project.
+
+### 9.5 ADRs (parked)
+
+Architecture Decision Records are currently in `deferred.md` awaiting a third project to adopt. Project-B uses `docs/adr/NNNN-<slug>.md` with context / decision / consequences / status. Project-A uses tech-spec docs. Neither is the parent rule yet.
+
+**Interim guidance:** if you write an ADR, use Project-B's shape. When a third project picks the same shape, promote it.
+
+---
+
+## 10. Onboarding a new project — full playbook
+
+This is the canonical sequence. Run it manually, or point `scripts/onboard-project.sh` at it once the script exists (not yet).
+
+### 10.1 Pre-flight questions (answer before anything)
+
+- **Name?** Final, committed. Directory name matches.
+- **GitHub host?** User, new org, existing org?
+- **Stack?** Informs `CLAUDE.md` seed and `.gitignore`.
+- **Class?** Monorepo SaaS, single Next.js app, portfolio site, game, CLI — informs registry.
+- **License?** MIT default; choose something else only with reason.
+
+### 10.2 Scaffold steps
+
+```bash
+# 1. Create project directory
+cd __PROJECTS_ROOT__
+mkdir <name>
+cd <name>
+
+# 2. git init
+git init -b main
+
+# 3. Create the Claude Code inheritance structure
+mkdir -p .claude/rules .claude/hooks
+
+# 4. Symlink parent rules (PRIMARY inheritance — required)
+ln -s __SE_CORE_PATH__/core-rules/CLAUDE.md \
+      .claude/rules/se-core.md
+
+# 5. Copy canonical hooks
+cp __SE_CORE_PATH__/core-rules/hooks/*.sh .claude/hooks/
+chmod +x .claude/hooks/*.sh
+
+# 6. Write .claude/settings.json
+# (copy from any active project — structure is identical, uses $CLAUDE_PROJECT_DIR)
+
+# 7. Write project CLAUDE.md (template in §9.1)
+cat > CLAUDE.md <<'EOF'
+# <name>
+
+@__SE_CORE_PATH__/core-rules/CLAUDE.md
+
+<1-3 sentence project overview>
+
+## Stack
+...
+EOF
+
+# 8. Write gotchas.md (template in se-core/core-rules/templates/gotchas.md)
+cp __SE_CORE_PATH__/core-rules/templates/gotchas.md .
+
+# 9. .gitignore (stack-appropriate) + .claude/ exceptions
+cat >> .gitignore <<'EOF'
+context-log.md
+.claude/settings.local.json
+EOF
+# If .claude/ is ignored elsewhere in your .gitignore, add:
+#   !.claude/rules/
+#   !.claude/rules/se-core.md
+
+# 10. README.md (template in §9.2)
+
+# 11. Initial commit
+git add -A
+git add -f .claude/rules/se-core.md   # force-add the tracked symlink if needed
+git commit -m "chore: initial scaffold with SE Core inheritance"
+
+# 12. Add to registry.md
+# Edit __SE_CORE_PATH__/registry.md, add a new row under "Active projects"
+# Commit that change in se-core with "chore: register <name>"
+
+# 13. Create GitHub repo (via gh CLI or UI), add remote
+gh repo create <owner>/<name> --private --source=. --remote=origin
+git push -u origin main
+
+# 14. Enable branch protection on main (see §6.4)
+# Can be done via gh api or the GitHub UI. Must do before first PR.
+```
+
+### 10.3 First-commit checklist (verify before you push)
+
+- [ ] Read `__SE_CORE_PATH__/engineering-process.md` end-to-end. Everything below this line assumes you have.
+- [ ] `ls -la .claude/rules/se-core.md` — symlink exists, points at canonical path.
+- [ ] `readlink .claude/rules/se-core.md` — target is `__SE_CORE_PATH__/core-rules/CLAUDE.md`.
+- [ ] `ls .claude/hooks/` — all nine canonical `.sh` files present and executable.
+- [ ] `grep -q '$CLAUDE_PROJECT_DIR' .claude/settings.json` — no hardcoded project paths.
+- [ ] `CLAUDE.md` starts with `@__SE_CORE_PATH__/core-rules/CLAUDE.md` on line 2.
+- [ ] `gotchas.md` exists at project root.
+- [ ] `.gitignore` has `context-log.md` and `.claude/settings.local.json`.
+- [ ] `registry.md` has a row for the new project.
+- [ ] Branch protection enabled on `main`.
+
+### 10.4 Post-onboarding verification
+
+Wait for the next scheduled run of `parent-hook-drift` (Sunday 21:00) and `registry-blacklist-health` (Monday 10:36) — both should come back clean with the new project listed. Or manually trigger them via the scheduled-tasks MCP to verify immediately.
+
+---
+
+## 11. Scheduled audits & the feedback loop
+
+### 11.1 The seven audits
+
+| Audit | Cadence | What it catches |
+|---|---|---|
+| `bypass-tripwire` | Daily (Mon–Fri 08:07) | `--no-verify` commits, direct-to-main pushes, husky skips, force-pushes. |
+| `cross-project-process-audit` | Weekly (Mon 10:06) | Missing symlinks, missing hooks, staleness, required-file gaps. |
+| `registry-blacklist-health` | Weekly (Mon 10:36) | Registry vs. filesystem consistency, orphans, overdue blacklist reviews. |
+| `test-health` | Weekly (Mon 11:00) | Each project's fast test suite: pass/fail + last-green bisect on red. |
+| `parent-hook-drift` | Weekly (Sun 21:00) | Byte-identity of deployed hooks vs. canonical; settings.json registration gaps. |
+| `gotchas-rollup` | Monthly (1st 09:00) | Clusters each project's gotchas, applies Rule of Three for promotion. |
+| `audit-report-rollup` | Monthly (1st 10:00) | Trend analysis across the six audits above. |
+
+All audits write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-<name>.md`. All are headless `claude -p` runs driven by the scheduled-tasks MCP (`mcp__scheduled-tasks__*`). Prompt sources live in `scheduled-tasks/<name>/prompt.md`; runtime prompts live inside the MCP and should be kept in sync with disk.
+
+### 11.2 Remediation workflow
+
+1. **Read the audit report.** Critical findings first; warnings second; info last.
+2. **Classify:** is it drift (the project copy diverged from canonical), gap (missing a required file), or policy violation (bypass/direct push)?
+3. **For drift:** rsync the canonical hook or file to the project, commit with `chore: sync <thing> to canonical`. Run the audit again to verify.
+4. **For gaps:** re-run the relevant part of [§10 onboarding](#10-onboarding-a-new-project-full-playbook) for the missing file.
+5. **For policy violations:** if intentional (emergency override), document in `gotchas.md` and move on. If accidental, understand how it slipped past the three tiers of gates and close that gap.
+
+### 11.3 Writing new audit tasks
+
+Audits are written as SKILL-style prompt.md files under `scheduled-tasks/<name>/`. Good audit prompts:
+- Name their inputs (which files to read) and outputs (where to write).
+- Are **reporting only** — they never modify project files. That's a hard boundary.
+- Cap output size (50 lines of diff, 30 lines of log).
+- Degrade gracefully if a project is missing (defer to a sibling audit that owns detection).
+- Include sensible-failure-mode handling.
+
+See `scheduled-tasks/parent-hook-drift/prompt.md` as a template.
+
+---
+
+## 12. Incident response & rollback
+
+Solo-dev scope — this is not PagerDuty territory. The patterns:
+
+### 12.1 Triage tree
+
+1. **Is the production deployment broken?** Roll back first, diagnose second. `gh pr list --state merged --limit 5` to find the suspect; revert via `git revert <sha>` (never `git reset --hard` on shared branches); push through a revert PR.
+2. **Is local dev broken but prod is fine?** Diagnose without urgency. Check the last clean sha (`test-health` weekly report gives last-green automatically).
+3. **Is SE Core itself broken?** (Hooks failing, audits erroring, inheritance drift.) Fix at the parent layer; rsync fix to every project; commit in `se-core/` with `fix:` prefix.
+
+### 12.2 Rollback options, ranked
+
+1. **`git revert <sha>`** — preserves history, reversible, works after merge. Default choice.
+2. **Forward-fix** — if the bug is small and the fix is obvious, ship a fix rather than a revert. Only when you're sure of the scope.
+3. **`git reset --hard HEAD~N`** — forbidden on `main`. Allowed on a feature branch only if it's not yet pushed.
+4. **Force-push `main`** — forbidden unconditionally. Branch protection blocks this; the `pre-push` hook blocks this; don't try.
+
+### 12.3 Postmortem pattern (blameless, lightweight)
+
+For anything that took > 2 hours to resolve, write a short note in `gotchas.md`:
+
+```markdown
+## <YYYY-MM-DD> — <short title of what broke>
+**What happened:** <one paragraph>
+**Why it happened:** <root cause, not symptom>
+**Detection:** <how it surfaced — hook blocked us / user reported / audit caught it>
+**Fix:** <what the fix was>
+**Prevention:** <is there a hook, a test, a lint rule, an invariant check that would catch this category next time? If yes, open an issue or add it now.>
+```
+
+If a prevention is possible and cross-cutting, add it to `deferred.md` with this project as the first witness. When two more projects hit the same category, promote to parent.
+
+---
+
+## 13. Secrets & dependency management
+
+### 13.1 Secrets
+
+- **Never commit secrets.** `.env*`, `secrets/**`, `*.pem`, `*.key` are blocked from reads by `block-destructive` and should be `.gitignore`d at project root.
+- **Local dev** uses `.env.local` (gitignored). Share a `.env.example` with the keys and no values.
+- **CI/CD** secrets live in the platform's secret store (GitHub Actions secrets, Vercel environment variables, Cloudflare secret bindings). Rotate on any suspected leak.
+- **Production** uses the same platform secret stores. Per-environment values.
+- **Never pipe secrets through hooks or subagents.** Hooks run with the user's env and can see them; they must not echo them into tool output.
+
+### 13.2 Dependency management
+
+Baseline across all projects:
+
+- **Dependabot** (or Renovate) enabled on every repo — weekly schedule for minor/patch, manual for major.
+- **Auto-merge patch updates** when CI passes. Manual review for minor. Major upgrades are their own PR with testing notes.
+- **Pin versions** in lockfiles (`pnpm-lock.yaml`, `Cargo.lock`, etc.). Never commit with an out-of-sync lockfile.
+- **`npm audit` / `pnpm audit` / `cargo audit` / equivalent** runs in CI. High-severity vulnerabilities block the merge; medium/low get a fix window and a tracking issue.
+
+Upgrade cadence:
+- **Weekly:** accept Dependabot patch PRs.
+- **Monthly:** process minor upgrades with a morning of focused work.
+- **Quarterly:** evaluate major upgrades. Don't let any dep stay >2 majors behind without a written reason.
+
+### 13.3 CVE monitoring
+
+GitHub's Dependabot alerts are the default channel. High-severity alerts get same-week attention. For runtime-critical projects (e.g., anything public-facing handling user data), subscribe to the relevant advisory feeds (Node security, Rust advisory DB, GHSA).
+
+---
+
+## 14. Evolving SE Core
+
+### 14.1 Rule of Three
+
+The parent layer grows slowly and deliberately. A rule earns parent status only when *three* independent projects adopt it. The mechanics:
+
+- **n = 1:** a rule appears in exactly one project's `CLAUDE.md` or hook set. Leave it project-local.
+- **n = 2:** a rule appears in two. Enter it in `core-rules/deferred.md` with source, what/why, and the condition for lift (usually "when a third project adopts a close variant").
+- **n = 3:** a third project adopts a close variant of the rule. Promote: edit `core-rules/CLAUDE.md` or `core-rules/hooks.md` as appropriate, cite the three sources, delete the `deferred.md` entry, run `parent-hook-drift` to sync.
+
+This is the discipline that prevents `core-rules/CLAUDE.md` from bloating into a 30 KB kitchen sink (as Project-A's did before SE Core extracted it).
+
+### 14.2 Demotion
+
+If a parent rule stops applying to one of the registered projects, consider demoting it. Demotion criteria:
+- At least three projects no longer use the rule actively, OR
+- The rule has been shown to cause harm (locked in wrong defaults, blocked legitimate work).
+
+Demotion mechanics: move the rule body into an `archived/` file with date + reason, remove from parent, run `parent-hook-drift` to sync.
+
+### 14.3 Who edits `core-rules/`
+
+Edits to `core-rules/` affect every registered project immediately (via the symlink). Consequence: every edit to `core-rules/CLAUDE.md`, `hooks.md`, or `inheritance.md` is a PR in `se-core/` with:
+- The rationale (why this edit).
+- The Rule-of-Three evidence if it's a lift.
+- A re-run of `parent-hook-drift` after merge to confirm every project's deployed copies are still identical.
+
+### 14.4 Rollout hygiene
+
+When a canonical hook changes:
+1. Edit `core-rules/hooks/<name>.sh` in `se-core/`.
+2. Commit in `se-core/` with `fix:` or `feat:` prefix.
+3. Rsync to every active project: `for p in $(registry-list); do cp core-rules/hooks/<name>.sh __PROJECTS_ROOT__/$p/.claude/hooks/; done`.
+4. Commit in each project with `chore: sync <hook> to canonical`.
+5. Next `parent-hook-drift` run confirms all byte-identical.
+
+Step 3 will be automated by `scripts/sync-hooks.sh` once it exists (currently manual).
+
+---
+
+## 15. Glossary & quick reference
+
+**Active project** — appears in `registry.md`, not in `blacklist.md`.
+
+**Canonical hook** — the nine `.sh` files under `__SE_CORE_PATH__/core-rules/hooks/`. Projects deploy copies; drift is flagged by `parent-hook-drift`.
+
+**Control plane** — the contents of `__SE_CORE_PATH__/`. The place where the regime is defined, evolved, and audited.
+
+**Drift** — a project's deployed hook or required file has diverged from canonical. Critical: flagged, must be remediated.
+
+**`$CLAUDE_PROJECT_DIR`** — environment variable injected by Claude Code pointing at the project root. Used in `settings.json` to keep hook paths rename-proof.
+
+**Headless-safe** — works identically in `claude -p` mode and interactive mode. All primary mechanisms must be headless-safe.
+
+**Inheritance** — the mechanism by which each project picks up parent rules. Primary: `.claude/rules/se-core.md` symlink. Secondary: `@`-import in project `CLAUDE.md`.
+
+**Parent layer** — the rules and hooks in `__SE_CORE_PATH__/core-rules/` that every registered project inherits.
+
+**Receipts** — the verification command + exit code + diff lines required to claim "done."
+
+**Registered** — synonymous with active.
+
+**Rule of Three** — promotion criterion: three independent project adoptions before a rule enters the parent layer.
+
+**SE Core** — this regime. The name, the directory, the process.
+
+**Silent drop** — Claude Code's behavior when inheritance breaks: no error, no warning, instruction simply doesn't load. Detection is via the `InstructionsLoaded` hook and periodic audits.
+
+**Tier (hook)** — three tiers: fast-local (every turn), heavy-gated (Stop event), git-boundary (husky).
+
+### Cheat sheet
+
+| I want to... | Do this |
+|---|---|
+| Add a project to SE Core | [§10](#10-onboarding-a-new-project-full-playbook) |
+| Temporarily exempt a project | Move row to `blacklist.md` with reason + revisit date |
+| Change a parent rule | PR in `se-core/`, cite Rule-of-Three evidence, rsync hooks, re-run `parent-hook-drift` |
+| Understand why a hook blocked me | Read `core-rules/hooks.md` for the spec; error output identifies the rule |
+| Roll back a bad merge | `git revert <sha>` → PR → merge. Never `reset --hard` on main. |
+| Commit while `.env` is in my diff | Stop. Remove the file. Rotate the secret. Recommit. |
+| Skip a broken hook | You don't. Fix the hook or document an override. `--no-verify` is tripwired. |
+| Find the last-green commit | `test-health` weekly report has it per project. |
+| Promote a rule from deferred.md | Rule of Three satisfied → edit parent rules → delete deferred entry → rsync |
+
+---
+
+## References
+
+- `core-rules/CLAUDE.md` — parent rules (LLM-facing, 76 lines).
+- `core-rules/hooks.md` — three-tier hook spec (159 lines).
+- `core-rules/inheritance.md` — symlink + @-import mechanism (43 lines).
+- `core-rules/deferred.md` — n=1 candidates awaiting third witness (71 lines).
+- `core-rules/hooks/README.md` — canonical hook script index + attribution.
+- `core-rules/hooks/*.sh` — nine canonical hook implementations.
+- `registry.md` — active project opt-in list.
+- `blacklist.md` — temporary exemptions.
+- `recon.md` — LIFT/LEAVE/DEFER thesis that seeded the regime.
+- `scheduled-tasks/` — audit prompt sources.
+- `audits/` — dated audit output archive.
+
+## Upstream attribution
+
+Core hook patterns (`block-destructive`, `post-edit-verify`, `stop-verify`, `truncation-check`) derive from [iamfakeguru/claude-md](https://github.com/iamfakeguru/claude-md) (MIT). Extensions are documented in each script's header. The three-tier architecture, TodoWrite-completion guard, `code-review-subagent`, `ui-verify`, session-context / save-context-log / post-compact-context hooks, and the git-boundary tier are SE Core additions.

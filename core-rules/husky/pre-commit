@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# SE Core canonical pre-commit.
+# Runs lint-staged if installed; otherwise skips.
+#
+# Deliberate design: this hook does NOT fall back to the `lint` script.
+# Running a monorepo-wide `lint` script on every commit is slow AND surfaces
+# pre-existing unrelated issues that block unrelated commits. Projects that
+# want pre-commit linting should install lint-staged and configure it to
+# target staged files only.
+
+set -e
+
+command -v node >/dev/null 2>&1 || { echo "[pre-commit] node unavailable; skipping"; exit 0; }
+
+if [ -x ./node_modules/.bin/lint-staged ]; then
+  ./node_modules/.bin/lint-staged
+else
+  echo "[pre-commit] lint-staged not installed - skipping (install + configure lint-staged for per-file linting)"
+fi
