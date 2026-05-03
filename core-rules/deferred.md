@@ -1,7 +1,5 @@
 # Deferred rules
 
-> **Template note.** The "Source" labels below (Neev, TGSC) name the two original projects from which SE Core's parent rules were extracted upstream. Treat them as **historical seeds** — they're not your projects. As you adopt SE Core across your own projects and find a candidate rule, replace these entries with your own sources. Promotion criterion (n=3) is unchanged; the source list is what evolves.
-
 Rules that are **candidates** for the parent layer but haven't earned their place yet. Each was seen in only one of the two reference projects (Neev, TGSC), or was seen in both with enough variation that lifting now would force a false abstraction.
 
 Promotion criterion: a **third active project** independently adopts the rule (or a close variant). At that point, move it into `CLAUDE.md` or `hooks.md` as appropriate, note the three sources, and delete it here.

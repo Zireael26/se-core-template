@@ -39,7 +39,56 @@ Every project in `registry.md` must:
 - [ ] Contain `.claude/rules/se-core.md` as a symlink to the canonical core-rules path.
 - [ ] Track `.claude/rules/se-core.md` in git (including `.gitignore` exceptions where needed).
 - [ ] Contain the `@`-import line in the project `CLAUDE.md` for interactive fallback.
+- [ ] Contain `.claude/skills/process-gate/` as a symlink to the canonical skills path (see "Skills inheritance" above).
+- [ ] If Codex-enabled (`harnesses` includes `"codex"` in `se-core.config.json`): contain `.agents/rules/se-core.md` and `.agents/skills/process-gate/` symlinks pointing at the same canonical targets.
 - [ ] Have GitHub branch protection enabled on `main` (see `registry.md` step 5).
+
+## Skills inheritance (process-gate + future canonical skills)
+
+Canonical skills live under `core-rules/skills/<name>/` and are inherited via symlinks identical in shape to the rules symlink:
+
+    <project-root>/.claude/skills/<name>/  →  __SE_CORE_PATH__/core-rules/skills/<name>/
+    <project-root>/.agents/skills/<name>/  →  __SE_CORE_PATH__/core-rules/skills/<name>/
+
+The directory itself is symlinked (not individual files) so additions to canonical files appear automatically without per-project re-onboarding. Project-local overrides go in `<project-root>/.claude/skills/<name>/local.config.sh` (or other ungitignored override file the skill defines) — these are project-private, NOT covered by the canonical symlink.
+
+The current canonical skill is `process-gate`. See `core-rules/skills/process-gate/SKILL.md` for the contract.
+
+Same silent-drop invariant: if the symlink target moves or breaks, the skill simply does not load — no error. Detected by the extended `parent-hook-drift` audit (skills coverage), not at session time.
+
+## Multi-harness support (Claude Code + Codex)
+
+Claude Code is the primary harness. Codex is the secondary. SE Core is configured per-project via `harnesses` in `se-core.config.json` (Phase B); when `"codex"` is included, onboarding seeds both `.claude/` and `.agents/` artifact trees as parallel symlinks pointing at the same canonical sources.
+
+**Canonical file layout under `core-rules/`:**
+
+| Path | Purpose | Used by |
+|---|---|---|
+| `core-rules/CLAUDE.md` | Parent rules — single source of truth | Claude Code (`.claude/rules/se-core.md` symlink target) |
+| `core-rules/AGENTS.md` | Symlink → `CLAUDE.md` | Codex (when `<project>/AGENTS.md` symlinks here, or `.agents/rules/se-core.md` does) |
+| `core-rules/skills/<name>/` | Canonical skills | Both harnesses via parallel project symlinks |
+| `core-rules/hooks/` | Tier 1 + 2 Claude Code hooks | Claude Code only (no Codex equivalent) |
+| `core-rules/husky/` | Tier 3 git hooks | Both harnesses (git-level, harness-agnostic) |
+
+**What a Codex-enabled project looks like:**
+
+```
+<project-root>/
+├── CLAUDE.md                                                ← Claude Code rules entry
+├── AGENTS.md                                                ← symlink → CLAUDE.md (or its own equivalent)
+├── .claude/
+│   ├── rules/se-core.md   → /…/se-core/core-rules/CLAUDE.md
+│   ├── skills/process-gate/ → /…/se-core/core-rules/skills/process-gate/
+│   ├── hooks/                                               ← Tier 1+2, Claude-only
+│   └── settings.json
+└── .agents/
+    ├── rules/se-core.md   → /…/se-core/core-rules/CLAUDE.md   (same target as .claude/rules/)
+    └── skills/process-gate/ → /…/se-core/core-rules/skills/process-gate/
+```
+
+Codex has no Tier 1+2 hook equivalent; the `process-gate` skill is the harness-agnostic enforcement layer that compensates. Tier 3 (husky / native git hooks) covers both harnesses identically.
+
+For Claude-Code-only projects (default), `.agents/` is omitted entirely.
 
 ## Native git hooks (Unity / non-Node projects)
 

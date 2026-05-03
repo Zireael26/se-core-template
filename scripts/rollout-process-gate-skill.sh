@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+# Phase-C rollout: install the canonical process-gate skill symlink in every
+# registered project (skipping blacklist), preserving any existing project-local
+# skill content as a backup.
+#
+# **Run this AFTER the canonical skill is on the main branch of se-core.**
+# (Until then the symlinks would dangle.)
+#
+# Reads se-core.config.json for paths.
+# Honors `harnesses` to seed `.agents/skills/process-gate` parity when Codex enabled.
+#
+# Behavior per project:
+#   1. If <project>/.claude/skills/process-gate/ is already a symlink to canonical: skip.
+#   2. If a directory exists (project-local kit): rename to process-gate.local-backup-YYYYMMDD/.
+#   3. Create symlink → canonical.
+#   4. If no .claude/skills/process-gate-local/local.config.sh: seed a minimal one
+#      with stack profile auto-guessed from project structure.
+#   5. Same flow for .agents/skills/process-gate/ when codex harness enabled
+#      AND project already has .agents/ directory.
+#   6. Stage changes; do NOT commit (you commit per project, with project-specific
+#      message + reviewing the local.config.sh seeded values).
+#
+# Usage:
+#   rollout-process-gate-skill.sh                 # interactive, all projects
+#   rollout-process-gate-skill.sh --dry-run       # show plan only
+#   rollout-process-gate-skill.sh --yes           # non-interactive
+#   rollout-process-gate-skill.sh <name>          # single project
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/config-load.sh
+. "$SCRIPT_DIR/lib/config-load.sh"
+
+CANONICAL_SKILL="$SE_CORE_ROOT/core-rules/skills/process-gate"
+[ -d "$CANONICAL_SKILL" ] || {
+  echo "canonical skill missing at $CANONICAL_SKILL" >&2
+  echo "is the parent branch merged? run from main of se-core." >&2
+  exit 1
+}
+
+DRY_RUN=false
+ASSUME_YES=false
+ONLY_PROJECT=""
+DATE_TAG="$(date +%Y%m%d)"
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=true ;;
+    --yes|-y)  ASSUME_YES=true ;;
+    --help|-h) sed -n '2,/^$/p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    -*)        echo "unknown option: $arg" >&2; exit 2 ;;
+    *)         ONLY_PROJECT="$arg" ;;
+  esac
+done
+
+REGISTRY="$SE_CORE_ROOT/registry.md"
+BLACKLIST="$SE_CORE_ROOT/blacklist.md"
+
+read_registry() {
+  awk '
+    /^## Active projects/ { in_table=1; next }
+    /^---$/ && in_table { in_table=0 }
+    in_table && /^\| [a-zA-Z0-9._-]+ \|/ {
+      name=$0; gsub(/^\| /, "", name); gsub(/ \|.*$/, "", name)
+      if (name == "Project" || name ~ /^-+$/) next
+      print name
+    }
+  ' "$REGISTRY"
+}
+read_blacklist() {
+  [ -f "$BLACKLIST" ] || return 0
+  awk '
+    /^## (Blacklisted|Currently exempt|Active blacklist)/ { in_table=1; next }
+    /^---$/ && in_table { in_table=0 }
+    in_table && /^\| [a-zA-Z0-9._-]+ \|/ {
+      name=$0; gsub(/^\| /, "", name); gsub(/ \|.*$/, "", name)
+      if (name == "Project" || name ~ /^-+$/) next
+      print name
+    }
+  ' "$BLACKLIST"
+}
+
+REGISTRY_NAMES=()
+while IFS= read -r line; do [ -n "$line" ] && REGISTRY_NAMES+=("$line"); done < <(read_registry)
+BLACKLIST_NAMES=()
+while IFS= read -r line; do [ -n "$line" ] && BLACKLIST_NAMES+=("$line"); done < <(read_blacklist)
+
+is_blacklisted() {
+  local n="$1" b
+  [ "${#BLACKLIST_NAMES[@]:-0}" -eq 0 ] && return 1
+  for b in "${BLACKLIST_NAMES[@]}"; do [ "$b" = "$n" ] && return 0; done
+  return 1
+}
+
+# Best-effort stack-profile guess
+guess_profile() {
+  local p="$1"
+  if [ -f "$p/pnpm-workspace.yaml" ] || ([ -f "$p/package.json" ] && grep -q '"workspaces"' "$p/package.json" 2>/dev/null); then
+    echo "monorepo-pnpm"; return
+  fi
+  if [ -f "$p/next.config.ts" ] || [ -f "$p/next.config.js" ] || [ -f "$p/next.config.mjs" ]; then
+    echo "web-next"; return
+  fi
+  if [ -f "$p/vite.config.ts" ] || [ -f "$p/vite.config.js" ]; then
+    echo "web-vite"; return
+  fi
+  if [ -f "$p/Cargo.toml" ] || [ -f "$p/go.mod" ] || [ -f "$p/pyproject.toml" ]; then
+    echo "native-other"; return
+  fi
+  if [ -d "$p/Assets" ] && [ -d "$p/ProjectSettings" ]; then
+    echo "unity"; return
+  fi
+  echo "n-a"
+}
+
+seed_local_config() {
+  local p="$1" profile="$2" cfg_dir="$p/.claude/skills/process-gate-local"
+  local cfg="$cfg_dir/local.config.sh"
+  if [ -f "$cfg" ]; then
+    echo "  skip (local config exists): $cfg"
+    return
+  fi
+  $DRY_RUN && { echo "  + would seed: process-gate-local/local.config.sh ($profile)"; return; }
+  mkdir -p "$cfg_dir"
+  cat > "$cfg" <<EOF
+# Project-local process-gate overrides for $(basename "$p")
+# Loaded by canonical scripts via:
+#   source "\$CLAUDE_PROJECT_DIR/.claude/skills/process-gate-local/local.config.sh"
+# (Symlink at .claude/skills/process-gate points at canonical and is read-only.
+#  Local config lives alongside in process-gate-local/.)
+
+PROCESS_GATE_STACK_PROFILE="$profile"
+
+# Test commands — adjust to match your project. Auto-detected if blank.
+PROCESS_GATE_TYPECHECK_CMD=""
+PROCESS_GATE_LINT_CMD=""
+PROCESS_GATE_TEST_CMD=""
+
+# PR-size thresholds (defaults: 400 / 800)
+# PROCESS_GATE_PR_SIZE_LIMIT=400
+# PROCESS_GATE_PR_SIZE_HARD=800
+
+# Project EPM doc — gate warns if process-trigger paths change without it updated
+# PROCESS_GATE_PROJECT_EPM="docs/EPM.md"
+
+# Stack-profile validators (project-local scripts)
+PROCESS_GATE_STACK_VALIDATORS=()
+
+# After review, commit with: chore: rollout SE Core process-gate skill
+EOF
+  echo "  created: process-gate-local/local.config.sh ($profile)"
+}
+
+install_skill_symlink() {
+  local p="$1" rel="$2" target="$CANONICAL_SKILL"
+  local link="$p/$rel"
+  local parent_dir backup_dir cur
+
+  parent_dir="$(dirname "$link")"
+  mkdir -p "$parent_dir"
+
+  if [ -L "$link" ]; then
+    cur="$(readlink "$link")"
+    if [ "$cur" = "$target" ]; then
+      echo "  skip (correct symlink): $rel"
+      return
+    fi
+    echo "  WARN: $rel symlinks to '$cur', expected '$target' — leaving" >&2
+    return
+  fi
+
+  if [ -e "$link" ]; then
+    backup_dir="${link%/}.local-backup-$DATE_TAG"
+    if [ -e "$backup_dir" ]; then
+      echo "  WARN: backup target $backup_dir already exists — leaving original alone" >&2
+      return
+    fi
+    $DRY_RUN && { echo "  + would back up: $rel → ${rel}.local-backup-$DATE_TAG"; echo "  + would link: $rel → canonical"; return; }
+    mv "$link" "$backup_dir"
+    echo "  backed up: $rel → ${rel}.local-backup-$DATE_TAG"
+  fi
+
+  $DRY_RUN && { echo "  + would link: $rel → canonical"; return; }
+  ln -s "$target" "$link"
+  echo "  linked: $rel → canonical"
+}
+
+rollout_one() {
+  local name="$1"
+  local p="$PROJECTS_ROOT/$name"
+  if [ ! -d "$p/.git" ]; then
+    echo "skip (not a git repo on disk): $name → $p"
+    return
+  fi
+
+  echo "== $name =="
+
+  local profile
+  profile="$(guess_profile "$p")"
+  echo "  stack profile guess: $profile"
+
+  install_skill_symlink "$p" ".claude/skills/process-gate"
+  seed_local_config "$p" "$profile"
+
+  # Codex parity — only if both: harnesses includes codex AND project already has .agents/
+  if pg_has_harness codex && [ -d "$p/.agents" ]; then
+    install_skill_symlink "$p" ".agents/skills/process-gate"
+  elif [ -d "$p/.agents" ]; then
+    echo "  info: $p has .agents/ but harnesses=${HARNESSES[*]} — Codex parity NOT applied; rerun with codex enabled if desired"
+  fi
+}
+
+# Filter targets
+TARGETS=()
+if [ -n "$ONLY_PROJECT" ]; then
+  for n in "${REGISTRY_NAMES[@]}"; do
+    [ "$n" = "$ONLY_PROJECT" ] && TARGETS+=("$n")
+  done
+  if [ "${#TARGETS[@]}" -eq 0 ]; then
+    echo "project not in registry: $ONLY_PROJECT" >&2
+    exit 1
+  fi
+else
+  for n in "${REGISTRY_NAMES[@]}"; do
+    if is_blacklisted "$n"; then echo "skip (blacklisted): $n"; continue; fi
+    TARGETS+=("$n")
+  done
+fi
+
+echo "Targets: ${TARGETS[*]}"
+$DRY_RUN && echo "(dry-run mode — no writes)"
+
+if ! $ASSUME_YES && ! $DRY_RUN; then
+  printf "Proceed? [y/N] "
+  read -r ans
+  [ "$ans" = "y" ] || [ "$ans" = "Y" ] || { echo "aborted"; exit 0; }
+fi
+
+for n in "${TARGETS[@]}"; do
+  rollout_one "$n"
+done
+
+echo "== done =="
+echo
+echo "Per-project next steps:"
+echo "  1. cd <project>"
+echo "  2. review .claude/skills/process-gate-local/local.config.sh — fill in commands and validators"
+echo "  3. for projects with backed-up content: review .claude/skills/process-gate.local-backup-$DATE_TAG/"
+echo "     and migrate any keepers into process-gate-local/ as scripts or reference docs"
+echo "  4. git add .claude/skills/ && git commit -m 'chore: rollout SE Core process-gate skill'"

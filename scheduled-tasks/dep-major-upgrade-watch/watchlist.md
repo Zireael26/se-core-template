@@ -67,7 +67,7 @@ stays meaningful.
 
 - **Target:** `^4`
 - **Target set:** 2026-05-01
-- **Target reasoning:** Tailwind v4 (Oxide) is the current major; v3 → v4 is non-trivial (CSS-first config via `@theme`, Lightning CSS pipeline, plugin compat). Project-B is already on v4.
+- **Target reasoning:** Tailwind v4 (Oxide) is the current major; v3 → v4 is non-trivial (CSS-first config via `@theme`, Lightning CSS pipeline, plugin compat). TGSC is already on v4.
 - **Per-project overrides:**
   - *(none)*
 
@@ -76,14 +76,6 @@ stays meaningful.
 - **Target:** `^8`
 - **Target set:** 2026-05-01 (revised — initial seed of `^7` was already a major behind; first audit caught it)
 - **Target reasoning:** Vite 8 is the current major (latest at revision: 8.0.10). For non-Next projects using Vite. Skip if the project doesn't use Vite (audit reports `not-applicable`). 7 → 8 dropped Node 18 support and updated Rollup; verify `engines.node` is on 22 LTS first.
-- **Per-project overrides:**
-  - *(none)*
-
-### prisma  (npm)
-
-- **Target:** `^7`
-- **Target set:** 2026-05-01 (revised — initial seed of `^6` was already a major behind; first audit caught it)
-- **Target reasoning:** Prisma 7 is GA (latest at revision: 7.8.0). For projects with Prisma in the data layer. The 6 → 7 jump is mostly engine perf and DX improvements; engine-default and Node 16 drop already happened in 5 → 6, so this is a relatively clean bump for projects already on 6.
 - **Per-project overrides:**
   - *(none)*
 

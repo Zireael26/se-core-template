@@ -34,7 +34,7 @@ hook.
 Projects are allowed to have hooks beyond the canonical set. Known extras:
 
 ```
-project-a: check-module-boundary.sh
+msme-neev: check-module-boundary.sh
 ```
 
 No other project-specific hooks as of 2026-04-20. If new ones appear, add

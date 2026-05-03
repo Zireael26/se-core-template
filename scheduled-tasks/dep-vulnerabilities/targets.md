@@ -23,9 +23,9 @@ Override the default lockfile detection or scanner command for a specific projec
 # <project-name> [<workspace-path>]: <command>
 ```
 
-E.g., for a Project-A workspace with a non-standard layout:
+E.g., for a Neev workspace with a non-standard layout:
 ```
-# project-a [apps/api]: skip — workspace uses an internal-only registry not reachable from sandbox
+# neev [apps/api]: skip — workspace uses an internal-only registry not reachable from sandbox
 ```
 
 No overrides set as of 2026-05-01.

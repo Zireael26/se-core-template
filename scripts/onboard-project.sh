@@ -1,40 +1,40 @@
 #!/usr/bin/env bash
 # SE Core project onboarding. Idempotent: never overwrites existing files.
 #
-# Wires a project into the SE Core process regime:
-#   1. Creates the .claude/rules/se-core.md symlink (load-bearing inheritance — see core-rules/inheritance.md).
-#   2. Seeds gotchas.md, context-log.md.
-#   3. Installs husky hooks (.husky/pre-commit, commit-msg, pre-push).
-#   4. Reminds you to add the @-import line to the project's CLAUDE.md.
+# Reads se-core.config.json for paths and harness selection.
+# Seeds:
+#   - <project>/gotchas.md, <project>/context-log.md
+#   - <project>/.claude/rules/se-core.md → canonical CLAUDE.md (symlink)
+#   - <project>/.claude/skills/process-gate → canonical skill (symlink)
+#   - <project>/.husky/{pre-commit,commit-msg,pre-push}     [if Node project]
+#   - <project>/.agents/rules/se-core.md   → canonical CLAUDE.md  [if Codex enabled]
+#   - <project>/.agents/skills/process-gate → canonical skill     [if Codex enabled]
 #
-# Usage:
-#   ./scripts/onboard-project.sh <project-path>
-#
-# Auto-detects SE_CORE_PATH from this script's own location, so the script
-# is portable as long as it stays inside the SE Core repo.
-#
-# After running, run your package manager so husky activates:
-#   cd <project-path> && (pnpm install | bun install | npm install)
+# Usage: onboard-project.sh <project-path>
 
 set -euo pipefail
 
-# Auto-detect SE Core root (parent of this script's parent dir).
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SE_CORE="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/config-load.sh
+. "$SCRIPT_DIR/lib/config-load.sh"
 
-CANONICAL_RULES="$SE_CORE/core-rules/CLAUDE.md"
-TEMPLATES="$SE_CORE/core-rules/templates"
-HUSKY_CANONICAL="$SE_CORE/core-rules/husky"
+TEMPLATES="$SE_CORE_ROOT/core-rules/templates"
+HUSKY_CANONICAL="$SE_CORE_ROOT/core-rules/husky"
+CANONICAL_RULES="$SE_CORE_ROOT/core-rules/CLAUDE.md"
+CANONICAL_SKILLS_DIR="$SE_CORE_ROOT/core-rules/skills"
 
 if [ $# -ne 1 ]; then
   echo "usage: $0 <project-path>" >&2
   exit 2
 fi
 
-PROJECT="$(cd "$1" && pwd)"
+PROJECT="$1"
 [ -d "$PROJECT" ]       || { echo "not a directory: $PROJECT" >&2; exit 1; }
 [ -d "$PROJECT/.git" ]  || { echo "not a git repo: $PROJECT" >&2; exit 1; }
-[ -f "$CANONICAL_RULES" ] || { echo "canonical rules missing: $CANONICAL_RULES" >&2; exit 1; }
+
+# Sanity-check canonical sources exist before we start seeding
+[ -f "$CANONICAL_RULES" ]      || { echo "canonical rules missing: $CANONICAL_RULES" >&2; exit 1; }
+[ -d "$CANONICAL_SKILLS_DIR" ] || { echo "canonical skills dir missing: $CANONICAL_SKILLS_DIR" >&2; exit 1; }
 
 seed_file() {
   local src="$1" dst="$2"
@@ -46,7 +46,28 @@ seed_file() {
   fi
 }
 
-seed_hook() {
+seed_symlink() {
+  local target="$1" link="$2"
+  mkdir -p "$(dirname "$link")"
+  if [ -L "$link" ]; then
+    local cur
+    cur="$(readlink "$link")"
+    if [ "$cur" = "$target" ]; then
+      echo "skip (correct symlink): ${link#$PROJECT/}"
+      return
+    fi
+    echo "WARN: ${link#$PROJECT/} symlinks to '$cur', expected '$target' — leaving as-is" >&2
+    return
+  fi
+  if [ -e "$link" ]; then
+    echo "WARN: ${link#$PROJECT/} exists and is not a symlink — leaving as-is" >&2
+    return
+  fi
+  ln -s "$target" "$link"
+  echo "linked: ${link#$PROJECT/} → $target"
+}
+
+seed_husky_hook() {
   local name="$1"
   local dst="$PROJECT/.husky/$name"
   if [ -e "$dst" ]; then
@@ -59,49 +80,38 @@ seed_hook() {
 }
 
 echo "== onboarding $PROJECT =="
-echo "   SE Core root: $SE_CORE"
+echo "   se_core_root:  $SE_CORE_ROOT"
+echo "   harnesses:     ${HARNESSES[*]}"
 
-# --- 1. Inheritance symlink (load-bearing — works in headless `claude -p` mode) ---
-mkdir -p "$PROJECT/.claude/rules"
-SYMLINK_PATH="$PROJECT/.claude/rules/se-core.md"
-if [ -L "$SYMLINK_PATH" ]; then
-  echo "skip (exists): .claude/rules/se-core.md (symlink)"
-elif [ -e "$SYMLINK_PATH" ]; then
-  echo "WARN: .claude/rules/se-core.md exists but is NOT a symlink — leaving as-is."
-  echo "      Replace it manually with: ln -sf '$CANONICAL_RULES' '$SYMLINK_PATH'"
-else
-  ln -s "$CANONICAL_RULES" "$SYMLINK_PATH"
-  echo "created: .claude/rules/se-core.md -> $CANONICAL_RULES"
-fi
-
-# --- 2. Project-local files ---
+# Project root files
 seed_file "$TEMPLATES/gotchas.md"     "$PROJECT/gotchas.md"
 seed_file "$TEMPLATES/context-log.md" "$PROJECT/context-log.md"
 
-# --- 3. Husky hooks (Node projects) ---
+# Claude Code inheritance: rules + skills
+seed_symlink "$CANONICAL_RULES"                       "$PROJECT/.claude/rules/se-core.md"
+seed_symlink "$CANONICAL_SKILLS_DIR/process-gate"     "$PROJECT/.claude/skills/process-gate"
+
+# Husky / git hooks (Node projects only)
 if [ -f "$PROJECT/package.json" ]; then
   mkdir -p "$PROJECT/.husky"
-  seed_hook pre-commit
-  seed_hook commit-msg
-  seed_hook pre-push
+  seed_husky_hook pre-commit
+  seed_husky_hook commit-msg
+  seed_husky_hook pre-push
 else
-  echo "skip: no package.json — husky not applicable."
-  echo "      For native git hooks (Unity / Rust / Go / Python), see core-rules/inheritance.md"
-  echo "      'Native git hooks (Unity / non-Node projects)' section."
+  echo "info: no package.json — husky skipped. Project must enforce PR-flow guard via .githooks/ (see core-rules/inheritance.md \"Native git hooks\")."
 fi
 
-echo
-echo "== done =="
-echo
-echo "Next steps (manual):"
-echo "  1. Add this @-import line at the TOP of $PROJECT/CLAUDE.md:"
-echo
-echo "       @$CANONICAL_RULES"
-echo
-echo "  2. Track the symlink in git so it survives a clone:"
-echo "       cd '$PROJECT' && git add .claude/rules/se-core.md gotchas.md context-log.md"
-if [ -f "$PROJECT/package.json" ]; then
-echo "       git add .husky/pre-commit .husky/commit-msg .husky/pre-push"
-echo "  3. Install deps so husky activates: cd '$PROJECT' && (pnpm install | bun install | npm install)"
+# Codex parity
+if pg_has_harness codex; then
+  echo "-- codex harness enabled --"
+  seed_symlink "$CANONICAL_RULES"                   "$PROJECT/.agents/rules/se-core.md"
+  seed_symlink "$CANONICAL_SKILLS_DIR/process-gate" "$PROJECT/.agents/skills/process-gate"
 fi
-echo "  4. Add the project to $SE_CORE/registry.md."
+
+echo "== done =="
+echo "Next:"
+[ -f "$PROJECT/package.json" ] && echo "  - run install in project so husky activates (pnpm/bun/npm install)"
+echo "  - add @-import line to project CLAUDE.md if not present:"
+echo "      @$CANONICAL_RULES"
+echo "  - register the project in $SE_CORE_ROOT/registry.md (chore: register <name>)"
+echo "  - configure project-local skill: $PROJECT/.claude/skills/process-gate/local.config.sh"

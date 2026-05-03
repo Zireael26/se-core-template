@@ -6,11 +6,12 @@ This audit **always** reads `__SE_CORE_PATH__/registry.md` at runtime for the pr
 
 Per `registry.md`, minus `blacklist.md`:
 
-- `/personal/project-a`
-- `/personal/project-b`
-- `/personal/project-c`
-- `/personal/project-d`
-- `/personal/project-e`
+- `/personal/neev`
+- `/personal/tgsc`
+- `/personal/akaushik.org`
+- `/personal/curat.money`
+- `/personal/vericite`
+- `/personal/lume`
 
 ## If you want the audit to skip a project this run
 

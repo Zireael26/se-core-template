@@ -23,7 +23,7 @@ Override the default test command for a project by adding a line here:
 # <project-name>: <command>
 ```
 
-E.g., if Project-A's "fast" suite is `pnpm test:unit` (not `pnpm test`), override it here.
+E.g., if Neev's "fast" suite is `pnpm test:unit` (not `pnpm test`), override it here.
 
 No overrides set as of 2026-04-20.
 

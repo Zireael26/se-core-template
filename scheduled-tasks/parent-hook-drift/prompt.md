@@ -1,19 +1,26 @@
 # Parent-hook drift (weekly)
 
-You are verifying that the canonical hook scripts in
-`__SE_CORE_PATH__/core-rules/hooks/` are
-**byte-identical** to the deployed copies in each registered project's
-`.claude/hooks/` directory. The parent layer only has teeth if projects
-actually inherit the current version — silent drift defeats the whole
-point.
+You are verifying that the canonical parent-layer artifacts —
+hook scripts in `__SE_CORE_PATH__/core-rules/hooks/`
+**and** canonical skills in `__SE_CORE_PATH__/core-rules/skills/` —
+are **byte-identical** to their deployed copies in each registered project.
+The parent layer only has teeth if projects actually inherit the current
+version — silent drift defeats the whole point.
+
+This audit covers two artifact classes:
+
+1. **Hook drift** — files copied into `<project>/.claude/hooks/` (must be byte-identical copies of canonical).
+2. **Skill drift** — symlinks at `<project>/.claude/skills/<name>/` (and `<project>/.agents/skills/<name>/` if Codex-enabled) MUST resolve to the canonical directory under `__SE_CORE_PATH__/core-rules/skills/<name>/`. Symlink target verification, not byte-content (the symlink IS the inheritance).
 
 ## Inputs
 
-1. Canonical source:
+1. Canonical hook source:
    `__SE_CORE_PATH__/core-rules/hooks/*.sh`
-2. Read `__SE_CORE_PATH__/registry.md`
-3. Read `__SE_CORE_PATH__/blacklist.md`
-4. Target set = `registry \ blacklist`.
+2. Canonical skills source:
+   `__SE_CORE_PATH__/core-rules/skills/*/`
+3. Read `__SE_CORE_PATH__/registry.md`
+4. Read `__SE_CORE_PATH__/blacklist.md`
+5. Target set = `registry \ blacklist`.
 
 ## Canonical hook manifest
 
@@ -36,7 +43,7 @@ Nine canonical hooks total. Each must be present as a file, byte-identical
 to canonical, executable, and registered under the expected event + matcher.
 
 The project may have **additional** hooks beyond these — that's fine and
-expected (e.g., project-a has `check-module-boundary.sh`). Additional hooks
+expected (e.g., msme-neev has `check-module-boundary.sh`). Additional hooks
 are not checked by this task.
 
 ## Checks per project
@@ -76,6 +83,39 @@ List any `.sh` file in `.claude/hooks/` that is not in the canonical
 manifest. This is not a problem — it's a project-specific hook. Just note
 it so we know each project's local extensions.
 
+### 6. Skill symlink presence
+
+Canonical skills currently shipped: `process-gate`.
+
+For each canonical skill, verify the project carries the inheritance symlink:
+
+- `<project>/.claude/skills/<name>/` exists AND is a symlink
+- `readlink <project>/.claude/skills/<name>/` resolves to `__SE_CORE_PATH__/core-rules/skills/<name>/` (or the equivalent canonical path)
+
+Missing or wrong target → **critical: skill not inherited**. The skill will silently not load.
+
+Lume carve-out: Lume (Unity) is currently expected to carry the `process-gate` symlink. The canonical six gates apply regardless of stack. Stack-specific validators are project-local (`PROCESS_GATE_STACK_PROFILE="unity"` declared in `local.config.sh` is expected).
+
+### 7. Skill symlink (Codex parity)
+
+For projects with `harnesses` including `"codex"` in `<project>/.claude/se-core.config.json` (project-local override) OR in the parent `se-core.config.json` (Phase B; until that lands, infer from presence of `<project>/.agents/`):
+
+- `<project>/.agents/skills/<name>/` exists AND is a symlink
+- Target matches `<project>/.claude/skills/<name>/` target
+
+Missing → **critical: Codex harness lacks skill inheritance**.
+Drift between `.claude/` and `.agents/` skill targets → **critical: harness divergence**.
+
+If Codex is not declared for the project, this check is `n/a`.
+
+### 8. local.config.sh sanity
+
+For each project, the project-local `<project>/.claude/skills/process-gate/local.config.sh` is OPTIONAL but recommended.
+
+- File present: parse it. Verify `PROCESS_GATE_STACK_PROFILE` is one of the documented values (`web-next`, `web-vite`, `monorepo-pnpm`, `unity`, `native-other`, `n-a`).
+- File absent: **info** (the skill uses sensible defaults; not a failure).
+- File present but unparseable bash: **warning**.
+
 ## Output
 
 Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
@@ -85,10 +125,12 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
 
 ## Summary
 - Projects checked: <N>
-- Fully synced (all canonical hooks present + identical + registered + +x): <count>
-- Drifted: <count>
+- Fully synced (all canonical hooks present + identical + registered + +x; all skills symlinked correctly): <count>
+- Drifted hooks: <count>
 - Missing hooks: <count>
 - Registration gaps: <count>
+- Skill symlink missing or wrong target: <count>
+- Codex skill divergence (where Codex enabled): <count>
 
 ## Drifted hooks
 
@@ -120,12 +162,18 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
 
 | Project | Local-only hooks |
 |---|---|
-| project-a | check-module-boundary.sh |
+| neev | check-module-boundary.sh |
 | ... | ... |
+
+## Skill symlink status
+
+| Project | Skill | .claude target | .agents target (if Codex) | Status |
+|---|---|---|---|---|
+| <project> | process-gate | <readlink> | <readlink> | ✅ / ❌ |
 
 ## Recommended actions
 
-1. <prioritized — usually: "rsync canonical hooks to project X" or "update settings.json to register run-lint.sh">
+1. <prioritized — usually: "rsync canonical hooks to project X", "update settings.json to register run-lint.sh", or "create symlink .claude/skills/process-gate -> canonical in project Y">
 ```
 
 ## Severity

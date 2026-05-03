@@ -1,0 +1,145 @@
+---
+name: process-gate
+description: Pre-PR enforcement gate for any registered SE Core project. Use before opening a PR, as the first pass when reviewing someone else's PR, and whenever an agent is unsure whether a change is mergeable. Checks Conventional Commit format, PR size ceiling, branch-name pattern, secrets scan, bypass-marker scan, todos closure, and stack-specific gates loaded from `local.config.sh`. Returns a single verdict block (pass/warn/fail per category, overall MERGEABLE/NEEDS CHANGES/BLOCKED). Mandatory before merging to `main`.
+---
+
+# process-gate
+
+Harness-agnostic enforcement layer for the SE Core engineering process. Runs in Claude Code, Codex, headless `claude -p`, and CI. The skill is the executor; authoritative rules live in `engineering-process.md` and the project's own `CLAUDE.md`.
+
+When in doubt, those documents win. If a rule here contradicts either, fix the rule here.
+
+## When to use
+
+- **Before opening a PR.** Run the gate locally; fix what it flags.
+- **First pass on any PR review.** Spend human review attention on taste, not on rules a script can catch.
+- **When an agent is unsure whether a change is mergeable.** Invoke this skill rather than guess.
+- **When something broke on `main`.** Confirm whether a gate missed it; expect to write a new rule.
+
+## When NOT to use
+
+- Architectural questions ("should we build this"). Use an ADR or planning doc.
+- Visual or copy critique. The gate enforces machine-checkable rules only.
+- Day-to-day local verification. Hooks (`stop-verify`, `post-edit-verify`) cover that.
+
+## Gate categories
+
+Six canonical gates, all harness-agnostic. Each has a reference file, a validator, and a `pass / warn / fail` posture.
+
+| # | Gate | Reference | Validator |
+|---|---|---|---|
+| 1 | PR hygiene (commit format, size, branch name, description) | [`references/pr-hygiene.md`](references/pr-hygiene.md) | [`scripts/check-pr.sh`](scripts/check-pr.sh) |
+| 2 | Secrets in diff | [`references/secrets.md`](references/secrets.md) | [`scripts/check-secrets.sh`](scripts/check-secrets.sh) |
+| 3 | Bypass markers (`--no-verify`, force-push, override env vars) | [`references/bypass.md`](references/bypass.md) | [`scripts/check-bypass.sh`](scripts/check-bypass.sh) |
+| 4 | Tests & coverage | [`references/tests.md`](references/tests.md) | [`scripts/check-tests.sh`](scripts/check-tests.sh) |
+| 5 | Docs discipline (CHANGELOG, gotchas, ADRs) | [`references/docs.md`](references/docs.md) | [`scripts/check-docs.sh`](scripts/check-docs.sh) |
+| 6 | Stack-specific gates (design tokens, a11y, forbidden phrases, etc.) | [`references/stack-profiles.md`](references/stack-profiles.md) | project-local — loaded from `local.config.sh` |
+
+## Project-local configuration
+
+The skill loads `<project>/.claude/skills/process-gate/local.config.sh` if present. This is where each project declares stack-specific commands, thresholds, and stack-profile validators that don't fit the canonical six.
+
+Minimal `local.config.sh`:
+
+```bash
+# Commands the canonical scripts call.
+PROCESS_GATE_TEST_CMD="pnpm test"             # used by check-tests.sh
+PROCESS_GATE_TYPECHECK_CMD="pnpm typecheck"   # used by check-tests.sh
+PROCESS_GATE_LINT_CMD="pnpm lint"             # used by check-tests.sh
+PROCESS_GATE_PR_SIZE_LIMIT=400                # warn threshold (default 400)
+PROCESS_GATE_PR_SIZE_HARD=800                 # fail threshold (default 800)
+
+# Stack-profile validators (run after the canonical six).
+PROCESS_GATE_STACK_VALIDATORS=(
+  "scripts/check-tokens.sh"          # project-local, e.g. design-tokens guard
+  "scripts/check-a11y.sh"            # project-local
+)
+
+# Optional: stack profile name (web-next, web-vite, monorepo-pnpm, unity, native-other, n-a)
+PROCESS_GATE_STACK_PROFILE="web-next"
+```
+
+If `local.config.sh` is missing the canonical scripts use sensible defaults and warn that no stack profile is declared.
+
+## The standard run
+
+When invoked, the skill:
+
+1. Reads each of the six reference files so its advice reflects current rules (not stale training data).
+2. Sources `local.config.sh` if present.
+3. Inspects the working tree (or the diff range provided) and runs each validator in order.
+4. Emits a verdict section in this exact shape:
+
+```
+## process-gate verdict
+
+PR hygiene:        ✅ pass | ⚠️ warn | ❌ fail
+Secrets:           ✅ pass | ⚠️ warn | ❌ fail
+Bypass markers:    ✅ pass | ⚠️ warn | ❌ fail
+Tests & coverage:  ✅ pass | ⚠️ warn | ❌ fail
+Docs discipline:   ✅ pass | ⚠️ warn | ❌ fail
+Stack profile:     ✅ pass | ⚠️ warn | ❌ fail | ➖ n/a
+
+Overall: MERGEABLE | NEEDS CHANGES | BLOCKED
+```
+
+5. For every non-pass row, includes a **Finding** block with what failed, where (`file:line` if locatable), and the exact fix.
+6. For every `⚠️ warn`, includes a **Justify or fix** note. Warnings can be accepted by a reviewer but the acceptance must be recorded in the PR description.
+
+A `❌ fail` in any category means **BLOCKED** regardless of other rows.
+
+## Invocation
+
+### Local pre-flight
+
+```bash
+SKILL_DIR=".claude/skills/process-gate"
+bash "$SKILL_DIR/scripts/check-pr.sh"      --range=main..HEAD
+bash "$SKILL_DIR/scripts/check-secrets.sh" --range=main..HEAD
+bash "$SKILL_DIR/scripts/check-bypass.sh"  --range=main..HEAD
+bash "$SKILL_DIR/scripts/check-tests.sh"
+bash "$SKILL_DIR/scripts/check-docs.sh"    --range=main..HEAD
+# Stack-profile validators — declared in local.config.sh
+```
+
+### Agent-invoked review
+
+1. Checkout the PR branch.
+2. Run scripts above with `--range=origin/main..HEAD`.
+3. Emit the verdict section verbatim in the PR review comment.
+4. For each finding, attach the exact file:line anchor.
+
+### Human-invoked review
+
+Output goes into the PR description's "process-gate" section, pasted verbatim. Accepted warnings carry a one-line justification.
+
+## Stack-profile carve-outs
+
+Some projects don't fit the web-default assumptions baked into the canonical scripts. Document the carve-out in `local.config.sh`:
+
+- `PROCESS_GATE_STACK_PROFILE="unity"` — Tier-1 web checks (design-tokens, a11y) don't apply. Project supplies its own validators (e.g., `check-asset-bundle.sh`, `check-meta-files.sh`).
+- `PROCESS_GATE_STACK_PROFILE="native-other"` — generic native stack. Project supplies validators.
+- `PROCESS_GATE_STACK_PROFILE="n-a"` — explicitly opt out of stack profile (gate emits `➖ n/a` for the row). Use sparingly; document in project `gotchas.md`.
+
+The canonical six gates apply regardless of stack profile.
+
+## Scope boundaries
+
+- The skill **does not** run the build, deploy, or modify project files. CI and `stop-verify` cover that.
+- The skill **does not** read production data, secrets, or analytics.
+- The skill **does** read any file under the repo and may parse `git log` / `git diff` output.
+
+## Updating this skill
+
+The skill and `engineering-process.md` change together. Adding a process in the manual: add an enforcement here. Retiring one: retire here.
+
+Every change to canonical (`$SE_CORE_ROOT/core-rules/skills/process-gate/`) is a PR in se-core. The skill cannot relax its own rules silently — that's what `parent-hook-drift` (extended to skills) detects.
+
+## Multi-harness support
+
+Identical SKILL.md, references/, and scripts/ are surfaced to:
+
+- **Claude Code** via `<project>/.claude/skills/process-gate/` symlink → canonical.
+- **Codex** via `<project>/.agents/skills/process-gate/` symlink → canonical.
+
+Onboarding seeds both when `harnesses` in `se-core.config.json` includes `"codex"`. Skills, references, and scripts are byte-identical across harnesses; project-local `local.config.sh` is the only per-project file.
