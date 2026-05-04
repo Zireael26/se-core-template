@@ -19,6 +19,7 @@ findings=()
 # Defaults — overridable via local.config.sh
 DEFAULT_CHANGELOG_PATHS=("src/" "app/" "lib/" "components/" "packages/" "scripts/" "content/")
 CHANGELOG_PATHS=("${PROCESS_GATE_CHANGELOG_PATHS[@]:-${DEFAULT_CHANGELOG_PATHS[@]}}")
+CHANGELOG_FILE="${PROCESS_GATE_CHANGELOG_FILE:-CHANGELOG.md}"
 ADR_DIR="${PROCESS_GATE_ADR_DIR:-docs/adr}"
 DEFAULT_ADR_TRIGGERS=("next.config." "middleware." "package.json" "tsconfig.json" "drizzle.config." "prisma/schema.prisma" "vite.config.")
 ADR_TRIGGERS=("${PROCESS_GATE_ADR_TRIGGERS[@]:-${DEFAULT_ADR_TRIGGERS[@]}}")
@@ -27,9 +28,9 @@ PROJECT_EPM="${PROCESS_GATE_PROJECT_EPM:-}"
 # Get changed files
 changed_files="$(pg_diff_files "$RANGE" || true)"
 
-# --- CHANGELOG.md presence -------------------------------------------------
-if [ ! -f "CHANGELOG.md" ]; then
-  findings+=("CHANGELOG.md: missing — seed via Keep a Changelog 1.1.0 format")
+# --- Changelog presence ----------------------------------------------------
+if [ ! -f "$CHANGELOG_FILE" ]; then
+  findings+=("$CHANGELOG_FILE: missing — seed via Keep a Changelog 1.1.0 format")
   worst="fail"
 else
   # Did any code-trigger path change?
@@ -43,8 +44,8 @@ else
   done
 
   if $code_changed; then
-    if ! printf "%s\n" "$changed_files" | grep -qE '^CHANGELOG\.md$'; then
-      findings+=("CHANGELOG.md: not updated despite code changes under: ${CHANGELOG_PATHS[*]}")
+    if ! printf "%s\n" "$changed_files" | grep -Fxq "$CHANGELOG_FILE"; then
+      findings+=("$CHANGELOG_FILE: not updated despite code changes under: ${CHANGELOG_PATHS[*]}")
       worst="fail"
     fi
   fi

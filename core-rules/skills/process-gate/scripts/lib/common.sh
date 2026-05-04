@@ -29,10 +29,14 @@ pg_finding() {
   printf "  %s\n" "$*"
 }
 
-# Resolve project root. Trust $CLAUDE_PROJECT_DIR if set, else fall back to git.
+# Resolve project root. Harness env wins; PWD is the portable fallback.
 pg_project_dir() {
-  if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -d "$CLAUDE_PROJECT_DIR" ]; then
+  if [ -n "${CODEX_PROJECT_DIR:-}" ] && [ -d "$CODEX_PROJECT_DIR" ]; then
+    printf "%s" "$CODEX_PROJECT_DIR"
+  elif [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -d "$CLAUDE_PROJECT_DIR" ]; then
     printf "%s" "$CLAUDE_PROJECT_DIR"
+  elif [ -n "${PWD:-}" ] && [ -d "$PWD" ]; then
+    git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf "%s" "$PWD"
   else
     git rev-parse --show-toplevel 2>/dev/null
   fi
@@ -42,8 +46,31 @@ pg_project_dir() {
 pg_load_config() {
   local pdir
   pdir="$(pg_project_dir)" || return 0
-  local cfg="$pdir/.claude/skills/process-gate/local.config.sh"
-  if [ -f "$cfg" ]; then
+  local loaded=0
+  local cfg
+  local cfgs=(
+    "$pdir/.agents/skills/process-gate-local/local.config.sh"
+    "$pdir/.claude/skills/process-gate-local/local.config.sh"
+  )
+
+  if [ -n "${CODEX_PROJECT_DIR:-}" ]; then
+    cfgs=(
+      "$pdir/.claude/skills/process-gate-local/local.config.sh"
+      "$pdir/.agents/skills/process-gate-local/local.config.sh"
+    )
+  fi
+
+  for cfg in "${cfgs[@]}"; do
+    if [ -f "$cfg" ]; then
+      # shellcheck source=/dev/null
+      . "$cfg"
+      loaded=1
+    fi
+  done
+
+  # Deprecated Phase-B location retained for older projects until their next rollout.
+  cfg="$pdir/.claude/skills/process-gate/local.config.sh"
+  if [ "$loaded" -eq 0 ] && [ -f "$cfg" ]; then
     # shellcheck source=/dev/null
     . "$cfg"
   fi
@@ -84,7 +111,7 @@ pg_diff_stats() {
   local add del
   add="$(printf "%s" "$stats" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo 0)"
   del="$(printf "%s" "$stats" | grep -oE '[0-9]+ deletion'  | grep -oE '[0-9]+' || echo 0)"
-  printf "%s %s" "${add:-0}" "${del:-0}"
+  printf "%s %s\n" "${add:-0}" "${del:-0}"
 }
 
 # Lockfile / generated detection. Echoes 1 if the path is excluded for size purposes.

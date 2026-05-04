@@ -1,6 +1,6 @@
 # SETUP — manual walkthrough
 
-If you'd rather have an agent do this for you, paste the contents of [`AGENT_SETUP.md`](AGENT_SETUP.md) into Claude Code (or any Claude conversation with filesystem tools) and follow along. This file is for doing it by hand.
+If you'd rather have an agent do this for you, paste the contents of [`AGENT_SETUP.md`](AGENT_SETUP.md) into Claude Code, Codex, or another agent conversation with filesystem tools and follow along. This file is for doing it by hand.
 
 Total time: ~30 minutes if you have one project to onboard, +5 minutes per additional project.
 
@@ -12,7 +12,8 @@ Total time: ~30 minutes if you have one project to onboard, +5 minutes per addit
 - `bash`, `git`, `jq`, `grep`, `sed` on `PATH`
 - Node.js (only required if your projects use husky-managed git hooks)
 - A directory for your personal projects (e.g., `~/projects/personal/`) where each project is its own git repo
-- (Optional) Claude Code installed — most of the value comes from this
+- Claude Code and/or Codex installed
+- For Codex hooks: Codex CLI with hooks support and `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`
 
 ---
 
@@ -98,7 +99,32 @@ grep -rn "__SE_CORE_PATH__\|__PROJECTS_ROOT__\|__MAINTAINER_NAME__\|__GITHUB_USE
 
 ---
 
-## 4. Onboard your first project
+## 4. Choose harness support
+
+The template defaults to Claude-only:
+
+```json
+"harnesses": ["claude"]
+```
+
+To enable Codex parity, edit `se-core.config.json`:
+
+```json
+"harnesses": ["claude", "codex"]
+```
+
+Codex-enabled onboarding seeds root `AGENTS.md`, `.agents/rules/se-core.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh`.
+
+For Codex hooks, also confirm your user config has:
+
+```toml
+[features]
+codex_hooks = true
+```
+
+---
+
+## 5. Onboard your first project
 
 Pick one of your existing personal projects and onboard it. The script seeds the inheritance symlink, the project-local files (`gotchas.md`, `context-log.md`), and (if it's a Node project) the husky hook stack.
 
@@ -109,15 +135,16 @@ Pick one of your existing personal projects and onboard it. The script seeds the
 Read the script's "Next steps" output carefully — it asks you to:
 
 1. Add the `@`-import line at the top of the project's `CLAUDE.md`.
-2. `git add` the new files inside the project.
-3. Run `pnpm install` / `bun install` / `npm install` so husky activates.
-4. Add a row to `registry.md` here in `se-core/`.
+2. If Codex is enabled, review `AGENTS.md`, `.agents/`, and `.codex/`.
+3. `git add` the new files inside the project.
+4. Run `pnpm install` / `bun install` / `npm install` so husky activates.
+5. Add a row to `registry.md` here in `se-core/`.
 
 After onboarding 1–3 projects, you'll see the system pay off — the `cross-project-process-audit` will start surfacing real findings.
 
 ---
 
-## 5. (Optional) Wire up scheduled audits
+## 6. (Optional) Wire up scheduled audits
 
 The `scheduled-tasks/` dir holds prompts and configuration for 10 weekly/monthly audits. To actually *run* them on a schedule, you need either:
 
@@ -128,7 +155,7 @@ You don't have to enable any of them on day one. They become useful once you hav
 
 ---
 
-## 6. Commit and push your customized SE Core
+## 7. Commit and push your customized SE Core
 
 ```bash
 git add -A

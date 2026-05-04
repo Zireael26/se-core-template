@@ -8,7 +8,7 @@ The gate enforces presence and pass-status of the project-declared test commands
 
 ## Required commands
 
-Declared in `<project>/.claude/skills/process-gate/local.config.sh`:
+Declared in `<project>/.claude/skills/process-gate-local/local.config.sh` or, for Codex, `<project>/.agents/skills/process-gate-local/local.config.sh`:
 
 ```bash
 PROCESS_GATE_TYPECHECK_CMD="pnpm typecheck"

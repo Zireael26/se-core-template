@@ -7,7 +7,7 @@
 # (Until then the symlinks would dangle.)
 #
 # Reads se-core.config.json for paths.
-# Honors `harnesses` to seed `.agents/skills/process-gate` parity when Codex enabled.
+# Honors `harnesses` to seed `.agents/` and root `AGENTS.md` parity when Codex enabled.
 #
 # Behavior per project:
 #   1. If <project>/.claude/skills/process-gate/ is already a symlink to canonical: skip.
@@ -15,8 +15,8 @@
 #   3. Create symlink → canonical.
 #   4. If no .claude/skills/process-gate-local/local.config.sh: seed a minimal one
 #      with stack profile auto-guessed from project structure.
-#   5. Same flow for .agents/skills/process-gate/ when codex harness enabled
-#      AND project already has .agents/ directory.
+#   5. Same flow for .agents/skills/process-gate/ when codex harness enabled.
+#      Also seeds root AGENTS.md and .agents/rules/se-core.md when absent.
 #   6. Stage changes; do NOT commit (you commit per project, with project-specific
 #      message + reviewing the local.config.sh seeded values).
 #
@@ -32,7 +32,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/config-load.sh
 . "$SCRIPT_DIR/lib/config-load.sh"
 
+CANONICAL_RULES="$SE_CORE_ROOT/core-rules/CLAUDE.md"
 CANONICAL_SKILL="$SE_CORE_ROOT/core-rules/skills/process-gate"
+[ -f "$CANONICAL_RULES" ] || {
+  echo "canonical rules missing at $CANONICAL_RULES" >&2
+  exit 1
+}
 [ -d "$CANONICAL_SKILL" ] || {
   echo "canonical skill missing at $CANONICAL_SKILL" >&2
   echo "is the parent branch merged? run from main of se-core." >&2
@@ -115,19 +120,20 @@ guess_profile() {
 }
 
 seed_local_config() {
-  local p="$1" profile="$2" cfg_dir="$p/.claude/skills/process-gate-local"
+  local p="$1" profile="$2" harness_dir="${3:-.claude}" cfg_dir
+  cfg_dir="$p/$harness_dir/skills/process-gate-local"
   local cfg="$cfg_dir/local.config.sh"
   if [ -f "$cfg" ]; then
-    echo "  skip (local config exists): $cfg"
+    echo "  skip (local config exists): ${cfg#$p/}"
     return
   fi
-  $DRY_RUN && { echo "  + would seed: process-gate-local/local.config.sh ($profile)"; return; }
+  $DRY_RUN && { echo "  + would seed: $harness_dir/skills/process-gate-local/local.config.sh ($profile)"; return; }
   mkdir -p "$cfg_dir"
   cat > "$cfg" <<EOF
 # Project-local process-gate overrides for $(basename "$p")
 # Loaded by canonical scripts via:
-#   source "\$CLAUDE_PROJECT_DIR/.claude/skills/process-gate-local/local.config.sh"
-# (Symlink at .claude/skills/process-gate points at canonical and is read-only.
+#   source "\$PROJECT_DIR/$harness_dir/skills/process-gate-local/local.config.sh"
+# (Symlink at $harness_dir/skills/process-gate points at canonical and is read-only.
 #  Local config lives alongside in process-gate-local/.)
 
 PROCESS_GATE_STACK_PROFILE="$profile"
@@ -149,7 +155,30 @@ PROCESS_GATE_STACK_VALIDATORS=()
 
 # After review, commit with: chore: rollout SE Core process-gate skill
 EOF
-  echo "  created: process-gate-local/local.config.sh ($profile)"
+  echo "  created: $harness_dir/skills/process-gate-local/local.config.sh ($profile)"
+}
+
+install_symlink() {
+  local p="$1" rel="$2" target="$3"
+  local link="$p/$rel" cur
+  mkdir -p "$(dirname "$link")"
+
+  if [ -L "$link" ]; then
+    cur="$(readlink "$link")"
+    if [ "$cur" = "$target" ]; then
+      echo "  skip (correct symlink): $rel"
+      return
+    fi
+    echo "  WARN: $rel symlinks to '$cur', expected '$target' — leaving" >&2
+    return
+  fi
+  if [ -e "$link" ]; then
+    echo "  WARN: $rel exists and is not a symlink — leaving" >&2
+    return
+  fi
+  $DRY_RUN && { echo "  + would link: $rel → $target"; return; }
+  ln -s "$target" "$link"
+  echo "  linked: $rel → $target"
 }
 
 install_skill_symlink() {
@@ -189,7 +218,7 @@ install_skill_symlink() {
 rollout_one() {
   local name="$1"
   local p="$PROJECTS_ROOT/$name"
-  if [ ! -d "$p/.git" ]; then
+  if [ ! -e "$p/.git" ]; then
     echo "skip (not a git repo on disk): $name → $p"
     return
   fi
@@ -201,11 +230,24 @@ rollout_one() {
   echo "  stack profile guess: $profile"
 
   install_skill_symlink "$p" ".claude/skills/process-gate"
-  seed_local_config "$p" "$profile"
+  seed_local_config "$p" "$profile" ".claude"
 
-  # Codex parity — only if both: harnesses includes codex AND project already has .agents/
-  if pg_has_harness codex && [ -d "$p/.agents" ]; then
+  # Codex parity — first-class when the parent config enables the harness.
+  if pg_has_harness codex; then
+    install_symlink "$p" "AGENTS.md" "CLAUDE.md"
+    install_symlink "$p" ".agents/rules/se-core.md" "$CANONICAL_RULES"
     install_skill_symlink "$p" ".agents/skills/process-gate"
+    if [ -f "$p/.claude/skills/process-gate-local/local.config.sh" ] && [ ! -f "$p/.agents/skills/process-gate-local/local.config.sh" ]; then
+      $DRY_RUN && {
+        echo "  + would copy: .agents/skills/process-gate-local/local.config.sh from Claude local config"
+        return
+      }
+      mkdir -p "$p/.agents/skills/process-gate-local"
+      cp "$p/.claude/skills/process-gate-local/local.config.sh" "$p/.agents/skills/process-gate-local/local.config.sh"
+      echo "  created: .agents/skills/process-gate-local/local.config.sh (copied from Claude local config)"
+    else
+      seed_local_config "$p" "$profile" ".agents"
+    fi
   elif [ -d "$p/.agents" ]; then
     echo "  info: $p has .agents/ but harnesses=${HARNESSES[*]} — Codex parity NOT applied; rerun with codex enabled if desired"
   fi
@@ -245,7 +287,7 @@ echo "== done =="
 echo
 echo "Per-project next steps:"
 echo "  1. cd <project>"
-echo "  2. review .claude/skills/process-gate-local/local.config.sh — fill in commands and validators"
+echo "  2. review .claude/skills/process-gate-local/local.config.sh and, if Codex-enabled, .agents/skills/process-gate-local/local.config.sh"
 echo "  3. for projects with backed-up content: review .claude/skills/process-gate.local-backup-$DATE_TAG/"
 echo "     and migrate any keepers into process-gate-local/ as scripts or reference docs"
-echo "  4. git add .claude/skills/ && git commit -m 'chore: rollout SE Core process-gate skill'"
+echo "  4. git add .claude/skills/ .agents/ AGENTS.md && git commit -m 'chore: rollout SE Core process-gate skill'"

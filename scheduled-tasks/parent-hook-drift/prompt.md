@@ -2,6 +2,7 @@
 
 You are verifying that the canonical parent-layer artifacts —
 hook scripts in `__SE_CORE_PATH__/core-rules/hooks/`
+Codex hook assets in `__SE_CORE_PATH__/core-rules/codex/`
 **and** canonical skills in `__SE_CORE_PATH__/core-rules/skills/` —
 are **byte-identical** to their deployed copies in each registered project.
 The parent layer only has teeth if projects actually inherit the current
@@ -10,17 +11,20 @@ version — silent drift defeats the whole point.
 This audit covers two artifact classes:
 
 1. **Hook drift** — files copied into `<project>/.claude/hooks/` (must be byte-identical copies of canonical).
-2. **Skill drift** — symlinks at `<project>/.claude/skills/<name>/` (and `<project>/.agents/skills/<name>/` if Codex-enabled) MUST resolve to the canonical directory under `__SE_CORE_PATH__/core-rules/skills/<name>/`. Symlink target verification, not byte-content (the symlink IS the inheritance).
+2. **Codex hook drift** — files copied into `<project>/.codex/` (must be byte-identical copies of canonical when Codex is enabled).
+3. **Skill drift** — symlinks at `<project>/.claude/skills/<name>/` (and `<project>/.agents/skills/<name>/` if Codex-enabled) MUST resolve to the canonical directory under `__SE_CORE_PATH__/core-rules/skills/<name>/`. Symlink target verification, not byte-content (the symlink IS the inheritance).
 
 ## Inputs
 
 1. Canonical hook source:
    `__SE_CORE_PATH__/core-rules/hooks/*.sh`
-2. Canonical skills source:
+2. Canonical Codex hook source:
+   `__SE_CORE_PATH__/core-rules/codex/hooks.json` and `__SE_CORE_PATH__/core-rules/codex/hooks/*.sh`
+3. Canonical skills source:
    `__SE_CORE_PATH__/core-rules/skills/*/`
-3. Read `__SE_CORE_PATH__/registry.md`
-4. Read `__SE_CORE_PATH__/blacklist.md`
-5. Target set = `registry \ blacklist`.
+4. Read `__SE_CORE_PATH__/registry.md`
+5. Read `__SE_CORE_PATH__/blacklist.md`
+6. Target set = `registry \ blacklist`.
 
 ## Canonical hook manifest
 
@@ -45,6 +49,16 @@ to canonical, executable, and registered under the expected event + matcher.
 The project may have **additional** hooks beyond these — that's fine and
 expected (e.g., msme-neev has `check-module-boundary.sh`). Additional hooks
 are not checked by this task.
+
+## Canonical Codex hook manifest
+
+When parent `se-core.config.json` includes `"codex"` in `harnesses`, each project must carry:
+
+- `<project>/.codex/hooks.json`, byte-identical to `__SE_CORE_PATH__/core-rules/codex/hooks.json`
+- `<project>/.codex/hooks/*.sh`, byte-identical to `__SE_CORE_PATH__/core-rules/codex/hooks/*.sh`
+- all `.sh` files executable
+
+The manifest must use environment-relative commands such as `${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/...`; hardcoded project paths are drift.
 
 ## Checks per project
 
@@ -83,6 +97,16 @@ List any `.sh` file in `.claude/hooks/` that is not in the canonical
 manifest. This is not a problem — it's a project-specific hook. Just note
 it so we know each project's local extensions.
 
+### 5b. Codex hook assets
+
+If Codex is enabled:
+
+- Compare `.codex/hooks.json` to the canonical manifest.
+- Compare each `.codex/hooks/*.sh` to the canonical script with the same filename.
+- Report missing files, byte drift, non-executable scripts, and hardcoded absolute project paths.
+
+If Codex is not enabled, this check is `n/a`.
+
 ### 6. Skill symlink presence
 
 Canonical skills currently shipped: `process-gate`.
@@ -110,7 +134,7 @@ If Codex is not declared for the project, this check is `n/a`.
 
 ### 8. local.config.sh sanity
 
-For each project, the project-local `<project>/.claude/skills/process-gate/local.config.sh` is OPTIONAL but recommended.
+For each project, the project-local `<project>/.claude/skills/process-gate-local/local.config.sh` is OPTIONAL but recommended. If Codex is enabled, also check `<project>/.agents/skills/process-gate-local/local.config.sh`.
 
 - File present: parse it. Verify `PROCESS_GATE_STACK_PROFILE` is one of the documented values (`web-next`, `web-vite`, `monorepo-pnpm`, `unity`, `native-other`, `n-a`).
 - File absent: **info** (the skill uses sensible defaults; not a failure).
@@ -130,6 +154,7 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
 - Missing hooks: <count>
 - Registration gaps: <count>
 - Skill symlink missing or wrong target: <count>
+- Codex hook drift or missing assets: <count>
 - Codex skill divergence (where Codex enabled): <count>
 
 ## Drifted hooks
@@ -157,6 +182,12 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
 
 ## Executable-bit issues
 <list>
+
+## Codex hook status
+
+| Project | hooks.json | Scripts | Executable | Status |
+|---|---|---|---|---|
+| <project> | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ |
 
 ## Per-project extras (informational)
 

@@ -4,8 +4,8 @@ Authoritative source: `engineering-process.md` §6 (Git workflow) and §7 (Defin
 
 ## Branch name
 
-- Pattern: `<type>/<kebab-slug>`. Type ∈ `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `revert`.
-- Examples: `feat/avatar-rotation-gesture`, `fix/wardrobe-zoom-reset`, `chore/upgrade-next-15`.
+- Pattern: `<type>/<kebab-slug>`. Type ∈ `codex`, `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `revert`.
+- Examples: `codex/agent-parity`, `feat/avatar-rotation-gesture`, `fix/wardrobe-zoom-reset`, `chore/upgrade-next-15`.
 - Anything else: **warn** (rename if the branch is short-lived).
 
 ## Commit messages
@@ -29,7 +29,7 @@ Measured on the diff (additions + deletions, excluding lockfiles, generated file
 |---|---|
 | ≤ `PROCESS_GATE_PR_SIZE_LIMIT` (default 400) | pass |
 | Between limit and `PROCESS_GATE_PR_SIZE_HARD` (default 800) | warn — request reviewer ack in PR description |
-| > `PROCESS_GATE_PR_SIZE_HARD` | fail — split, or carry an ADR explaining why splitting harms clarity |
+| > `PROCESS_GATE_PR_SIZE_HARD` | fail — split, or carry a changed ADR under `PROCESS_GATE_ADR_DIR` explaining why splitting harms clarity |
 
 Lockfiles (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `Cargo.lock`, `go.sum`, `poetry.lock`, etc.), generated files declared via `.gitattributes` `linguist-generated`, and test snapshots do not count.
 
@@ -39,6 +39,11 @@ Override via `local.config.sh`:
 PROCESS_GATE_PR_SIZE_LIMIT=600
 PROCESS_GATE_PR_SIZE_HARD=1200
 ```
+
+When a range exceeds the hard cap, the gate accepts the documented ADR path only
+when the same diff changes at least one Markdown file under
+`PROCESS_GATE_ADR_DIR` (default `docs/adr`). The ADR should name the oversized
+change and explain why splitting it would make review or rollback less clear.
 
 ## PR description checklist
 
@@ -66,7 +71,7 @@ SE Core defaults:
 - Direct push to `main`: **forbidden** at three layers (Tier-3 `pre-push` hook, GitHub branch protection, this gate).
 - All changes go through a PR.
 - Self-review discipline: write the PR description as if explaining to a stranger; wait at least one session before merging; non-trivial changes get a code-review subagent pass.
-- Merge style: **squash and merge** by default. Rebase-merge only for PRs containing multiple semantically distinct commits.
+- Merge style: **merge commit** by default — preserve the full per-commit history of every PR. Do **not** squash-merge, and do not rebase-merge unless the branch's commit history is intentionally clean and linear and the user has explicitly approved that mode for the PR. Squash-merge is forbidden because it discards intermediate review state, agent attribution, and bisect resolution.
 
 Sole-maintainer projects: GitHub branch protection blocks self-approval, so "required reviewers" cannot be set without making the project undeployable. The functional gate is the local `pre-push` guard + CI + the PR window.
 

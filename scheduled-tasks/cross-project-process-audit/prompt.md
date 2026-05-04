@@ -35,6 +35,8 @@ Run these checks against each target project's root. Do **not** modify files —
 - Does `.claude/hooks/` exist?
 - Do the parent-layer hook scripts exist in it? Compare filenames against `__SE_CORE_PATH__/core-rules/hooks/` (the canonical implementations once Phase 2 ships). Report any missing.
 - Does `.claude/settings.json` register the hooks?
+- If Codex is enabled in parent `se-core.config.json`, does `.codex/hooks.json` exist?
+- If Codex is enabled, do the Codex hook scripts exist under `.codex/hooks/`? Compare filenames against `__SE_CORE_PATH__/core-rules/codex/hooks/`.
 
 ### 2. Hook-script staleness
 - For each hook present in both the project and the parent, run `diff` (or equivalent).
@@ -96,6 +98,19 @@ The parent rules in `core-rules/CLAUDE.md` are load-bearing — they MUST reach 
   This is approval-gated and interactive-only — missing it is a **warning**, not critical, because the symlink is the load-bearing path.
 
 Rationale for severity: `@`-imports are silently disabled in `claude -p` headless mode per Claude Code's trust-verification design. The `.claude/rules/se-core.md` symlink is the only mechanism that loads unconditionally across modes. See "Load-bearing inheritance mechanism" in `core-rules/CLAUDE.md`.
+
+### 9. Codex parity wiring
+
+If parent `__SE_CORE_PATH__/se-core.config.json` includes `"codex"` in `harnesses`, every registered project must also carry Codex inheritance:
+
+- Root `AGENTS.md` exists. Symlink to `CLAUDE.md` is OK; a regular file is OK only if it contains the SE Core import/path or equivalent project-specific Codex instructions.
+- `<project-root>/.agents/rules/se-core.md` exists, is a symlink, and resolves to `__SE_CORE_PATH__/core-rules/CLAUDE.md`.
+- `<project-root>/.agents/skills/process-gate/` exists, is a symlink, and resolves to `__SE_CORE_PATH__/core-rules/skills/process-gate`.
+- `<project-root>/.agents/skills/process-gate-local/local.config.sh` exists.
+- `<project-root>/.codex/hooks.json` exists and does not contain hardcoded absolute project paths.
+- Every script in `__SE_CORE_PATH__/core-rules/codex/hooks/*.sh` exists under `<project-root>/.codex/hooks/` and is executable.
+
+Missing `AGENTS.md`, `.agents/rules`, `.agents/skills/process-gate`, or `.codex/hooks.json` is **critical** because Codex sessions will run without the parent layer or without hook enforcement. Missing local config or non-executable Codex hook scripts are **warning**.
 
 ## Output format
 

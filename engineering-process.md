@@ -34,8 +34,8 @@ This is the single human-readable source of truth for how engineering is done un
 
 Software Engineering Core (SE Core) is a shared engineering-process regime that a set of opt-in personal projects inherit from. It lives in `~/projects/se-core/` and manifests in each registered project as:
 
-- A `.claude/rules/se-core.md` symlink pointing at the canonical parent rules (LLM-facing).
-- Nine canonical hooks deployed under `.claude/hooks/` that enforce the rules mechanically at tool-use time.
+- A `.claude/rules/se-core.md` symlink for Claude Code and `AGENTS.md` / `.agents/rules/se-core.md` for Codex, all pointing at the canonical parent rules.
+- Canonical hooks deployed under `.claude/hooks/` for Claude Code and `.codex/` for Codex that enforce the rules mechanically at tool-use time.
 - Weekly and monthly audits that scan every registered project for drift and write reports to `~/projects/se-core/audits/`.
 
 The goal: shared high standards across projects without hand-enforcing them per session.
@@ -47,7 +47,7 @@ The specs (`core-rules/CLAUDE.md`, `hooks.md`, `inheritance.md`) are terse and L
 ### Audience
 
 - **You (Abhishek)** — when you need to remember what the policy is, when you need to decide whether a pattern should be lifted into the parent, or when you're about to change something about the process.
-- **Your LLM collaborators** — Claude sessions (interactive and headless), Claude Code, Cowork — already load `core-rules/CLAUDE.md` via the inheritance mechanism. This manual is a companion for human-readable context that can be referenced on demand.
+- **Your LLM collaborators** — Claude Code, Codex, and headless audit runners — already load the parent rules via the inheritance mechanism. This manual is a companion for human-readable context that can be referenced on demand.
 - **Future contributors** — if SE Core ever has other humans working inside it, this is the doc that onboards them.
 
 ### Scope
@@ -68,7 +68,7 @@ Five principles the manual comes back to:
 
 **4. Small surface, deep discipline.** The parent layer is intentionally small: <5 KB for `core-rules/CLAUDE.md`, nine canonical hooks, seven scheduled audits. Anything broader than that belongs in a project-local file. This keeps the contract legible and the drift surface narrow. See [§3](#3-the-control-plane).
 
-**5. Headless-safe by default.** Every mechanism in the regime must work identically in interactive sessions and in `claude -p` headless runs (scheduled tasks, cron jobs, subagents, CI). The primary inheritance path is a symlink under `.claude/rules/` specifically because `@`-imports are gated by trust prompts that silently drop in headless mode. See [§4.2](#42-inheritance-symlink--import) and `core-rules/inheritance.md`.
+**5. Harness-safe by default.** Every mechanism in the regime should work in Claude Code and Codex, with hook envelopes separated where the tools differ. Claude's primary inheritance path is `.claude/rules/`; Codex's is root `AGENTS.md` plus `.agents/`. See [§4.2](#42-inheritance-symlink--import) and `core-rules/inheritance.md`.
 
 ---
 
@@ -89,7 +89,8 @@ se-core/
 │   ├── hooks.md                    ← three-tier hook spec
 │   ├── inheritance.md              ← symlink + @-import + multi-harness spec
 │   ├── deferred.md                 ← n=1 candidates awaiting third witness
-│   ├── hooks/                      ← canonical .sh implementations (Tier 1 + 2)
+│   ├── hooks/                      ← canonical Claude Code hook implementations
+│   ├── codex/                      ← canonical Codex hooks.json + hook scripts
 │   ├── husky/                      ← canonical Tier-3 git hooks
 │   ├── skills/                     ← canonical agent-invoked skills (process-gate)
 │   └── templates/                  ← context-log.md, gotchas.md seeds
@@ -97,7 +98,8 @@ se-core/
 ├── scripts/                        ← bootstrap + onboard + sync utilities
 │   ├── lib/                        ← config-load.sh, sed-portable.sh
 │   ├── onboard-project.sh          ← register + seed a project
-│   ├── sync-hooks.sh               ← canonical hooks → projects rsync
+│   ├── sync-hooks.sh               ← canonical Claude hooks → projects rsync
+│   ├── sync-codex-hooks.sh         ← canonical Codex hooks → projects rsync
 │   └── sync-to-template.sh         ← live → public template export (with redaction)
 └── audits/                         ← dated output of every audit run
 ```
@@ -135,8 +137,9 @@ Cross-machine portability is achieved by:
 
 | Script | Purpose |
 |---|---|
-| `scripts/onboard-project.sh <project-path>` | Seed inheritance symlinks, gotchas/context-log templates, husky hooks (or skip for native-githooks projects). Reads config; honors `harnesses` to seed `.agents/` parity when Codex enabled. |
+| `scripts/onboard-project.sh <project-path>` | Seed inheritance symlinks, gotchas/context-log templates, husky hooks (or skip for native-githooks projects). Reads config; honors `harnesses` to seed `AGENTS.md`, `.agents/`, and `.codex/` parity when Codex enabled. |
 | `scripts/sync-hooks.sh [--dry-run\|--yes]` | Canonical Tier 1+2 hook scripts → all registered projects' `.claude/hooks/`. Skill symlinks update automatically (no rsync needed). |
+| `scripts/sync-codex-hooks.sh [--dry-run\|--yes]` | Canonical Codex hook manifest + scripts → all registered projects' `.codex/` trees when Codex is enabled. |
 | `scripts/sync-to-template.sh [--apply] [--push]` | Live → template export. Redacts `$SE_CORE_ROOT`, `$PROJECTS_ROOT`, `$USER_HOME`, `$MAINTAINER_NAME`, `$GITHUB_USER` back to placeholders. Default mode is dry-run; `--apply` writes to template working tree; `--push` also commits + pushes (with confirmation). Excludes `audits/`, `registry.md`, `blacklist.md` (private). |
 
 **Read-repeatedly files** (the contract):
@@ -197,7 +200,7 @@ Full spec: `core-rules/hooks.md`. Summary follows.
 | **Tier 2 — heavy-gated** | On turn wrap-up (`Stop` event) | ≤ 90s | Catch "claimed done but isn't" before the turn ends. |
 | **Tier 3 — git-boundary** | On commit / push (husky) | Project-local | Last-line defense if tier 1/2 misfired. |
 
-Tier 1 and 2 are Claude Code hooks (JSON return, exit code 0/2 semantics). Tier 3 is husky + lint-staged + commitlint, standard git machinery.
+Tier 1 and 2 are harness hook events. Claude Code and Codex use separate JSON envelopes, so SE Core keeps separate canonical script trees while preserving the same policy intent. Tier 3 is husky + lint-staged + commitlint, standard git machinery.
 
 ### 5.2 The nine canonical hooks
 
@@ -213,9 +216,9 @@ Tier 1 and 2 are Claude Code hooks (JSON return, exit code 0/2 semantics). Tier 
 | `code-review-subagent.sh` | 2 | Stop (edit-heavy) | Dispatch a code-review subagent on the diff; findings must resolve or defer. |
 | `ui-verify.sh` | 2 | Stop (UI diff) | Spin up dev server, take screenshot, attach. |
 
-All are version-controlled at `core-rules/hooks/`. Projects deploy by copying into `.claude/hooks/` and wiring into `.claude/settings.json` using `$CLAUDE_PROJECT_DIR` paths (never hardcoded project paths — rename-proofing).
+Claude implementations are version-controlled at `core-rules/hooks/`. Projects deploy by copying into `.claude/hooks/` and wiring into `.claude/settings.json` using `$CLAUDE_PROJECT_DIR` paths.
 
-Hooks are **Claude Code only**. Codex has no equivalent of PreToolUse / Stop / PostToolUse hooks. The `process-gate` skill (§5b) is the harness-agnostic enforcement layer that compensates. Tier 3 (husky / native git hooks) covers both harnesses identically.
+Codex implementations are version-controlled at `core-rules/codex/`. Projects deploy by copying `hooks.json` and `hooks/*.sh` into `.codex/`; scripts resolve the project via `$CODEX_PROJECT_DIR` with `$CLAUDE_PROJECT_DIR` as a fallback. Codex hooks require `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`.
 
 ### 5b. Skills layer
 
@@ -229,9 +232,9 @@ Canonical skills live under `core-rules/skills/<name>/` and are inherited by eve
 <project-root>/.claude/skills/process-gate/  →  $SE_CORE_ROOT/core-rules/skills/process-gate/
 ```
 
-The directory itself is symlinked, so canonical updates appear automatically. Project-local configuration goes in `<project-root>/.claude/skills/process-gate/local.config.sh` (NOT covered by the canonical symlink — project owns it).
+The directory itself is symlinked, so canonical updates appear automatically. Project-local configuration goes beside the symlink in `<project-root>/.claude/skills/process-gate-local/local.config.sh` (NOT covered by the canonical symlink — project owns it).
 
-**Codex-enabled projects** additionally carry `.agents/skills/process-gate/` pointing at the same canonical target. Both symlinks resolve to byte-identical content; the project-local config is the only per-project file.
+**Codex-enabled projects** additionally carry `.agents/skills/process-gate/` pointing at the same canonical target and `.agents/skills/process-gate-local/local.config.sh` for Codex-local overrides. Both symlinks resolve to byte-identical content; `process-gate-local/` is the per-project extension point.
 
 **Stack profiles.** The canonical six gates apply to every project. Stack-specific validators (design tokens, a11y, module boundaries, asset checks) attach via `PROCESS_GATE_STACK_PROFILE` and `PROCESS_GATE_STACK_VALIDATORS` in `local.config.sh`. See `core-rules/skills/process-gate/references/stack-profiles.md`. Profiles waiting for a third witness queue in `core-rules/deferred.md`.
 
@@ -246,12 +249,12 @@ Projects can override:
 - UI file glob + dev-server port/regex (`ui-verify`)
 - Commit scope allowlist (`commit-msg`)
 
-Overrides live in each project's `.claude/hooks/config.sh`. The canonical `.sh` files themselves are never edited per-project — drift from canonical is what `parent-hook-drift` catches.
+Overrides live in each project's `.claude/hooks/config.sh` and/or `.codex/hooks/config.sh`. The canonical `.sh` files themselves are never edited per-project — drift from canonical is what `parent-hook-drift` catches.
 
 ### 5.4 Guarantees
 
-- **Rename-proof.** Hooks use `$CLAUDE_PROJECT_DIR` (injected by Claude Code), never hardcoded project paths. Verified across all five projects post-rename on 2026-04-24.
-- **Headless-safe.** Every hook works identically in `claude -p` runs and scheduled tasks.
+- **Rename-proof.** Hooks use `$CLAUDE_PROJECT_DIR` or `$CODEX_PROJECT_DIR`, never hardcoded project paths.
+- **Headless-safe.** Claude hooks work identically in `claude -p` runs and scheduled tasks; Codex hook parity is project-local and gated by the Codex hook feature flag.
 - **Fail closed.** A failed hook blocks; it never logs-and-continues.
 
 ### 5.5 Harness coverage matrix
@@ -262,11 +265,11 @@ Claude Code is the primary harness. Codex is the secondary. Different layers cov
 |---|---|---|---|
 | Parent rules doc | `CLAUDE.md` (via `.claude/rules/se-core.md` symlink) | `AGENTS.md` (symlink → `CLAUDE.md`, or `.agents/rules/se-core.md` symlink) | Single canonical source of truth in `core-rules/CLAUDE.md`. |
 | Skills (`process-gate`, future) | `.claude/skills/<name>/` symlink | `.agents/skills/<name>/` symlink | Same canonical target; byte-identical across harnesses. |
-| Tier 1 + 2 hooks | `.claude/settings.json` hook entries | **N/A** — no equivalent | The skills layer compensates for Codex. |
+| Tier 1 + 2 hooks | `.claude/settings.json` hook entries | `.codex/hooks.json` hook entries | Separate canonical envelopes; same policy intent. |
 | Tier 3 git hooks (husky / native) | runs in both | runs in both | Harness-agnostic. |
 | Scheduled audits | `mcp__scheduled-tasks__*` MCP | **N/A** at MCP level | Audit prompts are plain markdown; can be invoked from cron via `claude -p` regardless of which harness the user develops in. |
 
-Projects opt into Codex by setting `harnesses: ["claude", "codex"]` in `se-core.config.json` (Phase B, see §3 control plane). Default is `["claude"]`.
+Projects opt into Codex by setting `harnesses: ["claude", "codex"]` in `se-core.config.json` (see §3 control plane). The public template defaults to `["claude"]`; this live control plane runs both.
 
 ---
 
@@ -513,13 +516,16 @@ mkdir -p .claude/skills
 ln -s __SE_CORE_PATH__/core-rules/skills/process-gate \
       .claude/skills/process-gate
 
-# 5c. (Codex-enabled projects only) seed .agents tree
+# 5c. (Codex-enabled projects only) seed .agents and .codex trees
 # If `harnesses` in se-core.config.json includes "codex":
-#   mkdir -p .agents/rules .agents/skills
+#   mkdir -p .agents/rules .agents/skills .codex/hooks
 #   ln -s __SE_CORE_PATH__/core-rules/CLAUDE.md \
 #         .agents/rules/se-core.md
 #   ln -s __SE_CORE_PATH__/core-rules/skills/process-gate \
 #         .agents/skills/process-gate
+#   cp __SE_CORE_PATH__/core-rules/codex/hooks.json .codex/hooks.json
+#   cp __SE_CORE_PATH__/core-rules/codex/hooks/*.sh .codex/hooks/
+#   chmod +x .codex/hooks/*.sh
 #   # AGENTS.md at project root: either content + @-import OR symlink → CLAUDE.md
 #   ln -s CLAUDE.md AGENTS.md   # if no Codex-specific divergence is needed
 
@@ -581,7 +587,8 @@ git push -u origin main
 - [ ] `CLAUDE.md` starts with `@__SE_CORE_PATH__/core-rules/CLAUDE.md` on line 2.
 - [ ] `gotchas.md` exists at project root.
 - [ ] `.gitignore` has `context-log.md` and `.claude/settings.local.json`.
-- [ ] If Codex-enabled: `.agents/rules/se-core.md` and `.agents/skills/process-gate` symlinks resolve; `AGENTS.md` resolves (either symlink or content with `@`-import).
+- [ ] If Codex-enabled: `AGENTS.md`, `.agents/rules/se-core.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh` are present.
+- [ ] If Codex-enabled: `$CODEX_HOME/config.toml` has `[features] codex_hooks = true`.
 - [ ] `registry.md` has a row for the new project.
 - [ ] Branch protection enabled on `main`.
 

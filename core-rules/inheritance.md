@@ -40,7 +40,7 @@ Every project in `registry.md` must:
 - [ ] Track `.claude/rules/se-core.md` in git (including `.gitignore` exceptions where needed).
 - [ ] Contain the `@`-import line in the project `CLAUDE.md` for interactive fallback.
 - [ ] Contain `.claude/skills/process-gate/` as a symlink to the canonical skills path (see "Skills inheritance" above).
-- [ ] If Codex-enabled (`harnesses` includes `"codex"` in `se-core.config.json`): contain `.agents/rules/se-core.md` and `.agents/skills/process-gate/` symlinks pointing at the same canonical targets.
+- [ ] If Codex-enabled (`harnesses` includes `"codex"` in `se-core.config.json`): contain root `AGENTS.md`, `.agents/rules/se-core.md`, `.agents/skills/process-gate/`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and executable `.codex/hooks/*.sh`.
 - [ ] Have GitHub branch protection enabled on `main` (see `registry.md` step 5).
 
 ## Skills inheritance (process-gate + future canonical skills)
@@ -67,7 +67,8 @@ Claude Code is the primary harness. Codex is the secondary. SE Core is configure
 | `core-rules/CLAUDE.md` | Parent rules — single source of truth | Claude Code (`.claude/rules/se-core.md` symlink target) |
 | `core-rules/AGENTS.md` | Symlink → `CLAUDE.md` | Codex (when `<project>/AGENTS.md` symlinks here, or `.agents/rules/se-core.md` does) |
 | `core-rules/skills/<name>/` | Canonical skills | Both harnesses via parallel project symlinks |
-| `core-rules/hooks/` | Tier 1 + 2 Claude Code hooks | Claude Code only (no Codex equivalent) |
+| `core-rules/hooks/` | Tier 1 + 2 Claude Code hooks | Claude Code |
+| `core-rules/codex/` | Codex hook manifest + scripts | Codex |
 | `core-rules/husky/` | Tier 3 git hooks | Both harnesses (git-level, harness-agnostic) |
 
 **What a Codex-enabled project looks like:**
@@ -81,12 +82,23 @@ Claude Code is the primary harness. Codex is the secondary. SE Core is configure
 │   ├── skills/process-gate/ → /…/se-core/core-rules/skills/process-gate/
 │   ├── hooks/                                               ← Tier 1+2, Claude-only
 │   └── settings.json
-└── .agents/
-    ├── rules/se-core.md   → /…/se-core/core-rules/CLAUDE.md   (same target as .claude/rules/)
-    └── skills/process-gate/ → /…/se-core/core-rules/skills/process-gate/
+├── .agents/
+│   ├── rules/se-core.md   → /…/se-core/core-rules/CLAUDE.md   (same target as .claude/rules/)
+│   ├── skills/process-gate/ → /…/se-core/core-rules/skills/process-gate/
+│   └── skills/process-gate-local/local.config.sh
+└── .codex/
+    ├── hooks.json
+    └── hooks/*.sh
 ```
 
-Codex has no Tier 1+2 hook equivalent; the `process-gate` skill is the harness-agnostic enforcement layer that compensates. Tier 3 (husky / native git hooks) covers both harnesses identically.
+Codex project instructions are loaded from `AGENTS.md`; keep it as a symlink to `CLAUDE.md` unless the project has a deliberate Codex-specific override. Codex hooks require the user-level feature flag in `$CODEX_HOME/config.toml`:
+
+```toml
+[features]
+codex_hooks = true
+```
+
+Tier 3 (husky / native git hooks) covers both harnesses identically.
 
 For Claude-Code-only projects (default), `.agents/` is omitted entirely.
 

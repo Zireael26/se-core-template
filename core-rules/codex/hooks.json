@@ -1,0 +1,89 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/block-destructive.sh",
+            "timeout": 5,
+            "statusMessage": "Checking command safety..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/post-edit-verify.sh",
+            "timeout": 120,
+            "statusMessage": "Verifying edit..."
+          }
+        ]
+      },
+      {
+        "matcher": "Grep|Bash|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/truncation-check.sh",
+            "timeout": 5,
+            "statusMessage": "Checking for truncation..."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/session-context.sh",
+            "timeout": 10,
+            "statusMessage": "Loading session context..."
+          },
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/post-compact-context.sh",
+            "timeout": 10,
+            "statusMessage": "Restoring context after compact..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/save-context-log.sh",
+            "timeout": 10,
+            "statusMessage": "Saving session context..."
+          },
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/stop-verify.sh",
+            "timeout": 300,
+            "statusMessage": "Running final verification..."
+          },
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/code-review-subagent.sh",
+            "timeout": 120,
+            "statusMessage": "Code review on diff..."
+          },
+          {
+            "type": "command",
+            "command": "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/ui-verify.sh",
+            "timeout": 120,
+            "statusMessage": "UI verification..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,13 @@
 # Hook specifications
 
-Two tiers: **fast-local** runs on every relevant turn, **heavy-gated** runs on wrap-up. A third tier — **git-boundary** husky hooks — catches anything that slipped past Claude. Specs only; implementations live per-project under `.claude/hooks/` and `.husky/`.
+Two tiers: **fast-local** runs on every relevant turn, **heavy-gated** runs on wrap-up. A third tier — **git-boundary** husky hooks — catches anything that slipped past the agent. Specs only; implementations live per-project under `.claude/hooks/`, `.codex/hooks/`, and `.husky/`.
+
+Claude Code and Codex use different hook envelopes, so SE Core keeps separate canonical implementations:
+
+- Claude Code: `core-rules/hooks/*.sh`, copied to `<project>/.claude/hooks/` and registered in `<project>/.claude/settings.json`.
+- Codex: `core-rules/codex/hooks.json` plus `core-rules/codex/hooks/*.sh`, copied to `<project>/.codex/`.
+
+The policy intent is the same across harnesses. Claude-specific JSON such as `hookSpecificOutput.permissionDecision` stays in the Claude implementation; Codex blocking hooks emit `{"decision":"block","reason":"..."}` and exit 2.
 
 ---
 
@@ -17,8 +24,8 @@ Goal: sub-second feedback, zero approval fatigue. If a fast-local hook fails, Cl
   - SQL `DROP TABLE`, `DROP DATABASE`, `TRUNCATE TABLE`, or `DELETE FROM` without a `WHERE` clause
   - `.env*` file reads via `cat`, `less`, `head`, `tail`, `more`, `source`, `grep`, `sed`, `awk`, `bat`, or `**/secrets/**` glob on any reader
 - **Block condition:** trigger matched
-- **Return:** `{ "hookSpecificOutput": { "hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "<which rule fired, one line>" } }` on stdout
-- **Exit:** **always 0.** PreToolUse decisions ride in the JSON payload, not the exit code. Non-zero exit is a hook error, not a block.
+- **Return:** Claude emits `{ "hookSpecificOutput": { "hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "<which rule fired, one line>" } }`; Codex emits `{ "decision": "block", "reason": "<which rule fired, one line>" }`.
+- **Exit:** Claude exits 0 because PreToolUse decisions ride in the JSON payload. Codex exits 2 for a block. Non-blocking paths exit 0.
 
 ### post-edit-verify
 - **Event:** `PostToolUse` on `Edit`, `Write`, `MultiEdit`
@@ -47,13 +54,13 @@ Goal: sub-second feedback, zero approval fatigue. If a fast-local hook fails, Cl
 - **Exit:** never blocks
 
 ### save-context-log
-- **Event:** `PreCompact`
+- **Event:** Claude Code `PreCompact`; Codex `Stop`
 - **Writes:** `context-log.md` in the project root with — current branch, files touched this session, open todos, last two user asks, last two assistant decisions
 - **Return:** no stdout needed; file write is the side effect
 - **Exit:** never blocks
 
 ### post-compact-context
-- **Event:** `SessionStart` (source: `compact`)
+- **Event:** `SessionStart` (source: `compact` when provided)
 - **Injects:** contents of `context-log.md` if present
 - **Return:** `{ "additionalContext": "<contents of context-log.md>" }`
 - **Exit:** never blocks
@@ -125,7 +132,7 @@ Goal: last-line defense. If a tier-1 or tier-2 hook misfired, the local git comm
   2. Full typecheck + lint + fast test suite (same set as `stop-verify` step 2-4)
 - **Purpose:** catches anything where `stop-verify` was bypassed (manual commit outside a Claude turn, amended commit, etc.) and enforces SE Core's PR-flow policy at the git boundary.
 - **Block:** any step fails
-- **GitHub-side complement:** local guard prevents accidents; branch protection on the remote is the durable gate. Every SE Core project should have `main` branch-protected (require PR, passing status checks, linear history / squash-merge). Review-count enforcement is N/A here — sole-maintainer org, GitHub blocks self-approval; the PR window itself + CI is the gate.
+- **GitHub-side complement:** local guard prevents accidents; branch protection on the remote is the durable gate. Every SE Core project should have `main` branch-protected (require PR, passing status checks, merge-commit only — squash-merge disabled in repo settings to preserve full history). Review-count enforcement is N/A here — sole-maintainer org, GitHub blocks self-approval; the PR window itself + CI is the gate.
 
 ---
 
@@ -149,7 +156,7 @@ Each project may override:
 - UI file glob and dev-server port/ready-regex for `ui-verify`
 - Commit scope allowlist for `commit-msg`
 
-Overrides live in the project's `.claude/hooks/config.sh` (or equivalent). The parent hook scripts are read-only; projects point them at their tools via env vars.
+Overrides live in the project's `.claude/hooks/config.sh` and/or `.codex/hooks/config.sh`. The parent hook scripts are read-only; projects point them at their tools via env vars.
 
 ---
 

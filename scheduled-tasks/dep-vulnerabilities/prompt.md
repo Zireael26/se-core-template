@@ -51,7 +51,7 @@ Work via file tools, not bash, for everything project-local.
 
 ### 1. Discover the dependency surface
 
-**Do NOT use `**`-recursive globs.** They flood with `node_modules/`, `.codex-backup-*/`, `.claude/worktrees/<agent>/`, and similar. Use explicit `Read` calls for known paths and **shallow** `Glob` (no `**/`) for workspace expansion. Discovery procedure:
+**Do NOT use `**`-recursive globs.** They flood with `node_modules/`, `.codex/`, `.codex-backup-*/`, `.claude/worktrees/<agent>/`, and similar. Use explicit `Read` calls for known paths and **shallow** `Glob` (no `**/`) for workspace expansion. Discovery procedure:
 
 **Step 1.1 — Probe the project root.** For each target `<project>`, attempt `Read` (one at a time; "file not found" is expected for irrelevant ecosystems):
 
@@ -82,7 +82,7 @@ For each workspace pattern, expand with a **shallow** Glob — replace the trail
 **Post-filter Glob results.** The Glob tool in this runner is noisy — it can return paths under build artifact directories that match the filename. After every Glob, drop any result whose path contains any of these segments anywhere:
 
 ```
-node_modules/  .next/  .nuxt/  .turbo/  .codex-backup-  .claude/worktrees/
+node_modules/  .next/  .nuxt/  .turbo/  .codex/  .codex-backup-  .claude/worktrees/
 .git/  dist/  build/  out/  target/  Library/PackageCache/  .venv/  venv/
 .svelte-kit/  __pycache__/
 ```

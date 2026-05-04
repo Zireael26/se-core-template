@@ -7,21 +7,25 @@
 #   - <project>/.claude/rules/se-core.md → canonical CLAUDE.md (symlink)
 #   - <project>/.claude/skills/process-gate → canonical skill (symlink)
 #   - <project>/.husky/{pre-commit,commit-msg,pre-push}     [if Node project]
+#   - <project>/AGENTS.md                     → CLAUDE.md    [if Codex enabled and absent]
 #   - <project>/.agents/rules/se-core.md   → canonical CLAUDE.md  [if Codex enabled]
 #   - <project>/.agents/skills/process-gate → canonical skill     [if Codex enabled]
+#   - <project>/.codex/hooks.json and .codex/hooks/*.sh           [if Codex enabled]
 #
 # Usage: onboard-project.sh <project-path>
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/config-load.sh
 . "$SCRIPT_DIR/lib/config-load.sh"
 
-TEMPLATES="$SE_CORE_ROOT/core-rules/templates"
-HUSKY_CANONICAL="$SE_CORE_ROOT/core-rules/husky"
+TEMPLATES="$SOURCE_ROOT/core-rules/templates"
+HUSKY_CANONICAL="$SOURCE_ROOT/core-rules/husky"
 CANONICAL_RULES="$SE_CORE_ROOT/core-rules/CLAUDE.md"
 CANONICAL_SKILLS_DIR="$SE_CORE_ROOT/core-rules/skills"
+CANONICAL_CODEX_DIR="$SOURCE_ROOT/core-rules/codex"
 
 if [ $# -ne 1 ]; then
   echo "usage: $0 <project-path>" >&2
@@ -30,18 +34,35 @@ fi
 
 PROJECT="$1"
 [ -d "$PROJECT" ]       || { echo "not a directory: $PROJECT" >&2; exit 1; }
-[ -d "$PROJECT/.git" ]  || { echo "not a git repo: $PROJECT" >&2; exit 1; }
+[ -e "$PROJECT/.git" ]  || { echo "not a git repo: $PROJECT" >&2; exit 1; }
 
 # Sanity-check canonical sources exist before we start seeding
 [ -f "$CANONICAL_RULES" ]      || { echo "canonical rules missing: $CANONICAL_RULES" >&2; exit 1; }
 [ -d "$CANONICAL_SKILLS_DIR" ] || { echo "canonical skills dir missing: $CANONICAL_SKILLS_DIR" >&2; exit 1; }
+if pg_has_harness codex; then
+  [ -f "$CANONICAL_CODEX_DIR/hooks.json" ] || { echo "canonical Codex hooks manifest missing: $CANONICAL_CODEX_DIR/hooks.json" >&2; exit 1; }
+  [ -d "$CANONICAL_CODEX_DIR/hooks" ]      || { echo "canonical Codex hooks dir missing: $CANONICAL_CODEX_DIR/hooks" >&2; exit 1; }
+fi
 
 seed_file() {
   local src="$1" dst="$2"
   if [ -e "$dst" ]; then
     echo "skip (exists): ${dst#$PROJECT/}"
   else
+    mkdir -p "$(dirname "$dst")"
     cp "$src" "$dst"
+    echo "created: ${dst#$PROJECT/}"
+  fi
+}
+
+seed_executable_file() {
+  local src="$1" dst="$2"
+  if [ -e "$dst" ]; then
+    echo "skip (exists): ${dst#$PROJECT/}"
+  else
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    chmod +x "$dst"
     echo "created: ${dst#$PROJECT/}"
   fi
 }
@@ -67,6 +88,57 @@ seed_symlink() {
   echo "linked: ${link#$PROJECT/} → $target"
 }
 
+guess_profile() {
+  local p="$1"
+  if [ -f "$p/pnpm-workspace.yaml" ] || ([ -f "$p/package.json" ] && grep -q '"workspaces"' "$p/package.json" 2>/dev/null); then
+    echo "monorepo-pnpm"; return
+  fi
+  if [ -f "$p/next.config.ts" ] || [ -f "$p/next.config.js" ] || [ -f "$p/next.config.mjs" ]; then
+    echo "web-next"; return
+  fi
+  if [ -f "$p/vite.config.ts" ] || [ -f "$p/vite.config.js" ]; then
+    echo "web-vite"; return
+  fi
+  if [ -f "$p/Cargo.toml" ] || [ -f "$p/go.mod" ] || [ -f "$p/pyproject.toml" ]; then
+    echo "native-other"; return
+  fi
+  if [ -d "$p/Assets" ] && [ -d "$p/ProjectSettings" ]; then
+    echo "unity"; return
+  fi
+  echo "n-a"
+}
+
+seed_process_gate_config() {
+  local cfg="$1" profile="$2"
+  if [ -f "$cfg" ]; then
+    echo "skip (exists): ${cfg#$PROJECT/}"
+    return
+  fi
+  mkdir -p "$(dirname "$cfg")"
+  cat > "$cfg" <<EOF
+# Project-local process-gate overrides for $(basename "$PROJECT")
+# Loaded beside the harness skill symlink.
+
+PROCESS_GATE_STACK_PROFILE="$profile"
+
+# Test commands — adjust to match your project. Auto-detected if blank.
+PROCESS_GATE_TYPECHECK_CMD=""
+PROCESS_GATE_LINT_CMD=""
+PROCESS_GATE_TEST_CMD=""
+
+# Stack-profile validators (project-local scripts)
+PROCESS_GATE_STACK_VALIDATORS=()
+EOF
+  echo "created: ${cfg#$PROJECT/} ($profile)"
+}
+
+seed_codex_hooks() {
+  seed_file "$CANONICAL_CODEX_DIR/hooks.json" "$PROJECT/.codex/hooks.json"
+  for src in "$CANONICAL_CODEX_DIR/hooks"/*.sh; do
+    seed_executable_file "$src" "$PROJECT/.codex/hooks/$(basename "$src")"
+  done
+}
+
 seed_husky_hook() {
   local name="$1"
   local dst="$PROJECT/.husky/$name"
@@ -90,6 +162,8 @@ seed_file "$TEMPLATES/context-log.md" "$PROJECT/context-log.md"
 # Claude Code inheritance: rules + skills
 seed_symlink "$CANONICAL_RULES"                       "$PROJECT/.claude/rules/se-core.md"
 seed_symlink "$CANONICAL_SKILLS_DIR/process-gate"     "$PROJECT/.claude/skills/process-gate"
+PROFILE="$(guess_profile "$PROJECT")"
+seed_process_gate_config "$PROJECT/.claude/skills/process-gate-local/local.config.sh" "$PROFILE"
 
 # Husky / git hooks (Node projects only)
 if [ -f "$PROJECT/package.json" ]; then
@@ -104,8 +178,17 @@ fi
 # Codex parity
 if pg_has_harness codex; then
   echo "-- codex harness enabled --"
+  seed_symlink "CLAUDE.md" "$PROJECT/AGENTS.md"
   seed_symlink "$CANONICAL_RULES"                   "$PROJECT/.agents/rules/se-core.md"
   seed_symlink "$CANONICAL_SKILLS_DIR/process-gate" "$PROJECT/.agents/skills/process-gate"
+  if [ -f "$PROJECT/.claude/skills/process-gate-local/local.config.sh" ] && [ ! -f "$PROJECT/.agents/skills/process-gate-local/local.config.sh" ]; then
+    mkdir -p "$PROJECT/.agents/skills/process-gate-local"
+    cp "$PROJECT/.claude/skills/process-gate-local/local.config.sh" "$PROJECT/.agents/skills/process-gate-local/local.config.sh"
+    echo "created: .agents/skills/process-gate-local/local.config.sh (copied from Claude local config)"
+  else
+    seed_process_gate_config "$PROJECT/.agents/skills/process-gate-local/local.config.sh" "$PROFILE"
+  fi
+  seed_codex_hooks
 fi
 
 echo "== done =="
@@ -113,5 +196,8 @@ echo "Next:"
 [ -f "$PROJECT/package.json" ] && echo "  - run install in project so husky activates (pnpm/bun/npm install)"
 echo "  - add @-import line to project CLAUDE.md if not present:"
 echo "      @$CANONICAL_RULES"
+pg_has_harness codex && echo "  - confirm Codex hooks are enabled in \$CODEX_HOME/config.toml: [features] codex_hooks = true"
 echo "  - register the project in $SE_CORE_ROOT/registry.md (chore: register <name>)"
-echo "  - configure project-local skill: $PROJECT/.claude/skills/process-gate/local.config.sh"
+echo "  - configure project-local skill:"
+echo "      $PROJECT/.claude/skills/process-gate-local/local.config.sh"
+pg_has_harness codex && echo "      $PROJECT/.agents/skills/process-gate-local/local.config.sh"
