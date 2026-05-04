@@ -82,7 +82,7 @@ If `watchlist.md` is present but a tracked-package section is malformed, emit a 
 - `Read` `personal/<project>/pyproject.toml`, `Cargo.toml`, `go.mod` for non-Node ecosystems.
 - `Read` `personal/<project>/Packages/manifest.json` and `personal/<project>/ProjectSettings/ProjectVersion.txt` for Unity at root.
 - For Unity nested layouts (Lume convention): also probe `personal/<project>/<ProjectNameCapitalized>App/Packages/manifest.json` and `personal/<project>/<ProjectName>/Packages/manifest.json`. Lume's specifically lives at `personal/lume/LumeApp/`.
-- For Node monorepos: parse `pnpm-workspace.yaml#packages` or root `package.json#workspaces`. For each pattern like `apps/*`, expand with shallow Glob `personal/<project>/apps/*/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/`.
+- For Node monorepos: parse `pnpm-workspace.yaml#packages` or root `package.json#workspaces`. For each pattern like `apps/*`, expand with shallow Glob `personal/<project>/apps/*/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/`.
 
 **2.2 — Read the lockfile at each workspace root.** Direct `Read` (not Glob):
 - pnpm: `personal/<project>/pnpm-lock.yaml` (single root lockfile for all workspaces).

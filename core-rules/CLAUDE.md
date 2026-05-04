@@ -62,7 +62,7 @@ Cross-cutting rules that apply to every active personal project. Project-specifi
 
 ## Hooks
 
-Full hook specifications in `hooks.md` (sibling file). Two tiers: **fast-local** fires on every turn (`block-destructive`, `post-edit-verify`, `truncation-check`, `session-context`, `save-context-log`, `post-compact-context`); **heavy-gated** fires on wrap-up (`stop-verify`, `code-review-subagent`, `ui-verify`). Git-boundary tier (husky / native git hooks): `pre-commit`, `commit-msg`, `pre-push` — pre-push includes the SE Core PR-flow guard blocking direct push to `main`. Tier 1+2 are Claude Code only (Codex has no equivalent); tier 3 is harness-agnostic.
+Full hook specifications in `hooks.md` (sibling file). Two tiers: **fast-local** fires on every turn (`block-destructive`, `post-edit-verify`, `truncation-check`, `session-context`, `save-context-log`, `post-compact-context`); **heavy-gated** fires on wrap-up (`stop-verify`, `code-review-subagent`, `ui-verify`). Claude Code uses `.claude/hooks/` and `.claude/settings.json`; Codex uses `.codex/hooks.json` and `.codex/hooks/`. Git-boundary tier (husky / native git hooks): `pre-commit`, `commit-msg`, `pre-push` — pre-push includes the SE Core PR-flow guard blocking direct push to `main`.
 
 ## Skills
 
@@ -80,4 +80,4 @@ Active projects opt in via `registry.md`; temporary exemptions in `blacklist.md`
 
 ## Inheritance
 
-Load-bearing inheritance mechanism (symlink + @-import, skills inheritance, multi-harness Claude Code + Codex layout, silent-drop invariants, registered-project checklist): `core-rules/inheritance.md`. The scheduled `cross-project-process-audit` fails a project missing the `.claude/rules/se-core.md` or `.claude/skills/process-gate/` symlink.
+Load-bearing inheritance mechanism (symlink + @-import, skills inheritance, multi-harness Claude Code + Codex layout, silent-drop invariants, registered-project checklist): `core-rules/inheritance.md`. The scheduled `cross-project-process-audit` fails a project missing required Claude inheritance; Codex-enabled projects are also checked for `AGENTS.md`, `.agents/`, and `.codex/` parity.

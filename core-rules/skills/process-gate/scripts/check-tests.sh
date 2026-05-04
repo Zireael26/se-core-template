@@ -37,15 +37,17 @@ run_check() {
   if [ -z "$cmd" ]; then
     findings+=("$label: not declared in local.config.sh and not auto-detectable")
     [ "$worst" = "pass" ] && worst="warn"
-    return
+    return 0
   fi
 
   local out rc
+  set +e
   if command -v timeout >/dev/null 2>&1; then
     out="$(timeout "$PROCESS_GATE_TEST_TIMEOUT" bash -c "$cmd" 2>&1)"; rc=$?
   else
     out="$(bash -c "$cmd" 2>&1)"; rc=$?
   fi
+  set -e
 
   if [ "$rc" -ne 0 ]; then
     findings+=("$label: \`$cmd\` exited $rc")

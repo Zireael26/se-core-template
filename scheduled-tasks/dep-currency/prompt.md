@@ -51,11 +51,11 @@ Read-only via file tools.
 
 ### 1. Discover deps
 
-**Do NOT use `**`-recursive globs.** They flood with `node_modules/`, `.codex-backup-*/`, `.claude/worktrees/<agent>/`, and similar. Use the same explicit-Read + shallow-Glob procedure as `dep-vulnerabilities`:
+**Do NOT use `**`-recursive globs.** They flood with `node_modules/`, `.codex/`, `.codex-backup-*/`, `.claude/worktrees/<agent>/`, and similar. Use the same explicit-Read + shallow-Glob procedure as `dep-vulnerabilities`:
 
 - **Probe project root** with `Read` calls for canonical files (`package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Packages/manifest.json`, `ProjectSettings/ProjectVersion.txt`).
 - **Unity nested-app probe**: if root has no Unity files and class is "game/Unity", try `<ProjectNameCapitalized>App/` and `<ProjectName>/` sub-paths (Lume convention is `LumeApp/`).
-- **Workspace expansion**: parse `pnpm-workspace.yaml` `packages:` field or root `package.json#workspaces`. For each pattern like `apps/*`, use a shallow Glob `personal/<project>/apps/*/package.json` — never `apps/**/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/` — Glob is suffix-matching and returns build-artifact paths that need to be filtered out.
+- **Workspace expansion**: parse `pnpm-workspace.yaml` `packages:` field or root `package.json#workspaces`. For each pattern like `apps/*`, use a shallow Glob `personal/<project>/apps/*/package.json` — never `apps/**/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/` — Glob is suffix-matching and returns build-artifact paths that need to be filtered out.
 - **Lockfile location**: `Read` (don't Glob) the canonical lockfile at each workspace root: `pnpm-lock.yaml`, `bun.lock`/`bun.lockb`, `package-lock.json`, `yarn.lock`, `poetry.lock`/`uv.lock`/`Pipfile.lock`, `Cargo.lock`, `go.sum`. pnpm uses a single project-root lockfile for all workspaces.
 
 Tag each (project, workspace_path, ecosystem) tuple.

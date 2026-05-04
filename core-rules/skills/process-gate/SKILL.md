@@ -37,7 +37,13 @@ Six canonical gates, all harness-agnostic. Each has a reference file, a validato
 
 ## Project-local configuration
 
-The skill loads `<project>/.claude/skills/process-gate/local.config.sh` if present. This is where each project declares stack-specific commands, thresholds, and stack-profile validators that don't fit the canonical six.
+The skill loads project-local config from `process-gate-local/local.config.sh`
+beside the harness symlink. Claude Code uses
+`<project>/.claude/skills/process-gate-local/local.config.sh`; Codex uses
+`<project>/.agents/skills/process-gate-local/local.config.sh`. If both exist,
+the active harness's config wins. This is where each project declares
+stack-specific commands, thresholds, and stack-profile validators that don't fit
+the canonical six.
 
 Minimal `local.config.sh`:
 
@@ -94,6 +100,8 @@ A `❌ fail` in any category means **BLOCKED** regardless of other rows.
 
 ```bash
 SKILL_DIR=".claude/skills/process-gate"
+# Codex-enabled projects can use:
+# SKILL_DIR=".agents/skills/process-gate"
 bash "$SKILL_DIR/scripts/check-pr.sh"      --range=main..HEAD
 bash "$SKILL_DIR/scripts/check-secrets.sh" --range=main..HEAD
 bash "$SKILL_DIR/scripts/check-bypass.sh"  --range=main..HEAD
@@ -142,4 +150,10 @@ Identical SKILL.md, references/, and scripts/ are surfaced to:
 - **Claude Code** via `<project>/.claude/skills/process-gate/` symlink → canonical.
 - **Codex** via `<project>/.agents/skills/process-gate/` symlink → canonical.
 
-Onboarding seeds both when `harnesses` in `se-core.config.json` includes `"codex"`. Skills, references, and scripts are byte-identical across harnesses; project-local `local.config.sh` is the only per-project file.
+Project-local configuration and stack validators live beside those symlinks in
+`process-gate-local/`, for example
+`<project>/.claude/skills/process-gate-local/local.config.sh` and
+`<project>/.agents/skills/process-gate-local/scripts/check-tokens.sh`.
+Onboarding seeds both when `harnesses` in `se-core.config.json` includes `"codex"`.
+Skills, references, and scripts are byte-identical across harnesses; files under
+`process-gate-local/` are the per-project extension points.

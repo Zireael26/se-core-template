@@ -1,6 +1,6 @@
 {
   "$schema": "./scripts/lib/se-core.config.schema.json",
-  "comment": "Edit this file (or run scripts/configure.sh) after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, or sync-to-template.sh.",
+  "comment": "Edit this file after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, sync-codex-hooks.sh, or sync-to-template.sh. Keep harnesses as [\"claude\"] for Claude-only installs; add \"codex\" when opting into Codex parity.",
 
   "se_core_root": "__SE_CORE_PATH__",
   "projects_root": "__PROJECTS_ROOT__",

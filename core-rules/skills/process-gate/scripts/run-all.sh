@@ -40,6 +40,57 @@ run_gate() {
   esac
 }
 
+resolve_stack_validator() {
+  local v="$1"
+
+  if [ -z "$v" ]; then
+    return 1
+  fi
+
+  case "$v" in
+    /*)
+      [ -x "$v" ] && printf "%s" "$v"
+      return
+      ;;
+  esac
+
+  local dirs=()
+  if [ -n "${CODEX_PROJECT_DIR:-}" ]; then
+    dirs=(
+      "$PROJECT_DIR/.agents/skills/process-gate-local"
+      "$PROJECT_DIR/.claude/skills/process-gate-local"
+      "$PROJECT_DIR/.agents/skills/process-gate"
+      "$PROJECT_DIR/.claude/skills/process-gate"
+      "$SKILL_DIR"
+    )
+  elif [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+    dirs=(
+      "$PROJECT_DIR/.claude/skills/process-gate-local"
+      "$PROJECT_DIR/.agents/skills/process-gate-local"
+      "$PROJECT_DIR/.claude/skills/process-gate"
+      "$PROJECT_DIR/.agents/skills/process-gate"
+      "$SKILL_DIR"
+    )
+  else
+    dirs=(
+      "$PROJECT_DIR/.agents/skills/process-gate-local"
+      "$PROJECT_DIR/.claude/skills/process-gate-local"
+      "$PROJECT_DIR/.agents/skills/process-gate"
+      "$PROJECT_DIR/.claude/skills/process-gate"
+      "$SKILL_DIR"
+    )
+  fi
+
+  local dir candidate
+  for dir in "${dirs[@]}"; do
+    candidate="$dir/$v"
+    if [ -x "$candidate" ]; then
+      printf "%s" "$candidate"
+      return
+    fi
+  done
+}
+
 run_gate 0 "$SKILL_DIR/scripts/check-pr.sh"
 run_gate 1 "$SKILL_DIR/scripts/check-secrets.sh"
 run_gate 2 "$SKILL_DIR/scripts/check-bypass.sh"
@@ -58,8 +109,8 @@ else
     worst="pass"; combined=""
     for v in "${validators[@]}"; do
       [ -z "$v" ] && continue
-      vpath="$PROJECT_DIR/.claude/skills/process-gate/$v"
-      if [ ! -x "$vpath" ]; then
+      vpath="$(resolve_stack_validator "$v")"
+      if [ -z "$vpath" ]; then
         combined="${combined}validator missing or not executable: $v"$'\n'
         worst="fail"; continue
       fi

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SE Core configuration",
+  "type": "object",
+  "required": [
+    "se_core_root",
+    "projects_root",
+    "user_home",
+    "maintainer_name",
+    "github_user",
+    "harnesses"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "comment": {
+      "type": "string"
+    },
+    "se_core_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projects_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "user_home": {
+      "type": "string",
+      "minLength": 1
+    },
+    "maintainer_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "github_user": {
+      "type": "string",
+      "minLength": 1
+    },
+    "harnesses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": ["claude", "codex"]
+      },
+      "uniqueItems": true
+    },
+    "template": {
+      "type": "object",
+      "properties": {
+        "remote": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "redact_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "sed_flavor": {
+      "enum": ["auto", "gnu", "bsd"]
+    }
+  },
+  "additionalProperties": true
+}

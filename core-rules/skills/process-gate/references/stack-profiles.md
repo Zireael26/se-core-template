@@ -47,7 +47,7 @@ Used when stack-specific gates legitimately don't apply. The verdict row renders
 
 ## Adding a stack-profile validator
 
-In the project's `local.config.sh`:
+In the project's `process-gate-local/local.config.sh`:
 
 ```bash
 PROCESS_GATE_STACK_PROFILE="web-next"
@@ -59,7 +59,15 @@ PROCESS_GATE_STACK_VALIDATORS=(
 )
 ```
 
-Paths are relative to the skill directory (`<project>/.claude/skills/process-gate/`).
+Relative paths are resolved from the harness-local extension directory first:
+
+- Claude Code: `<project>/.claude/skills/process-gate-local/`
+- Codex: `<project>/.agents/skills/process-gate-local/`
+
+If a validator is not found there, `run-all.sh` falls back to the canonical
+skill symlink (`<project>/.claude/skills/process-gate/` or
+`<project>/.agents/skills/process-gate/`) so promoted canonical validators can
+still be referenced by relative path.
 
 Each validator script must:
 

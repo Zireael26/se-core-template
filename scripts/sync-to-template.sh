@@ -17,6 +17,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/config-load.sh
 . "$SCRIPT_DIR/lib/config-load.sh"
 # shellcheck source=lib/sed-portable.sh
@@ -44,7 +45,7 @@ for arg in "$@"; do
   esac
 done
 
-[ -d "$TEMPLATE_DIR/.git" ] || {
+[ -e "$TEMPLATE_DIR/.git" ] || {
   echo "template repo not found at $TEMPLATE_DIR" >&2
   echo "set SE_CORE_TEMPLATE_DIR or pass --template-dir=<path>" >&2
   exit 1
@@ -55,6 +56,7 @@ SYNC_PATHS=(
   "engineering-process.md"
   "core-rules/CLAUDE.md"
   "core-rules/AGENTS.md"
+  "core-rules/codex/"
   "core-rules/hooks.md"
   "core-rules/inheritance.md"
   "core-rules/deferred.md"
@@ -75,8 +77,8 @@ NEVER_SYNC=(
 )
 
 # Placeholder substitutions: live values → template placeholders
-declare -a SUB_FROM=("$SE_CORE_ROOT" "$PROJECTS_ROOT" "$USER_HOME" "$MAINTAINER_NAME" "$GITHUB_USER")
-declare -a SUB_TO=("__SE_CORE_PATH__" "__PROJECTS_ROOT__" "__USER_HOME__" "__MAINTAINER_NAME__" "__GITHUB_USER__")
+declare -a SUB_FROM=("$SE_CORE_ROOT" "$SOURCE_ROOT" "$PROJECTS_ROOT" "$USER_HOME" "$MAINTAINER_NAME" "$GITHUB_USER")
+declare -a SUB_TO=("__SE_CORE_PATH__" "__SE_CORE_PATH__" "__PROJECTS_ROOT__" "__USER_HOME__" "__MAINTAINER_NAME__" "__GITHUB_USER__")
 
 # --- Workspace -------------------------------------------------------------
 TMP_STAGE="$(mktemp -d)"
@@ -84,7 +86,7 @@ trap 'rm -rf "$TMP_STAGE"' EXIT
 
 echo "==> Staging in $TMP_STAGE"
 for p in "${SYNC_PATHS[@]}"; do
-  src="${SE_CORE_ROOT}/${p%/}"
+  src="${SOURCE_ROOT}/${p%/}"
   if [ ! -e "$src" ]; then
     echo "skip (missing in live): $p"
     continue
@@ -120,7 +122,7 @@ if [ -f "$TMP_STAGE/se-core.config.json" ]; then
   cat > "$TMP_STAGE/se-core.config.json" <<'EOF'
 {
   "$schema": "./scripts/lib/se-core.config.schema.json",
-  "comment": "Edit this file (or run scripts/configure.sh) after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, or sync-to-template.sh.",
+  "comment": "Edit this file after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, sync-codex-hooks.sh, or sync-to-template.sh. Keep harnesses as [\"claude\"] for Claude-only installs; add \"codex\" when opting into Codex parity.",
 
   "se_core_root": "__SE_CORE_PATH__",
   "projects_root": "__PROJECTS_ROOT__",
