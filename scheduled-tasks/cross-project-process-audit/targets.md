@@ -2,16 +2,10 @@
 
 This audit **always** reads `__SE_CORE_PATH__/registry.md` at runtime for the project list. That file is the source of truth; don't hardcode paths here.
 
-## Current expected set (as of 2026-04-20)
+## Current expected set
 
-Per `registry.md`, minus `blacklist.md`:
-
-- `/personal/neev`
-- `/personal/tgsc`
-- `/personal/akaushik.org`
-- `/personal/curat.money`
-- `/personal/vericite`
-- `/personal/lume`
+Per `registry.md`, minus `blacklist.md`. Do not hardcode the current project
+roster here; this file should stay reusable as the registry changes.
 
 ## If you want the audit to skip a project this run
 

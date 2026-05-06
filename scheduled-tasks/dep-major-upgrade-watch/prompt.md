@@ -1,6 +1,6 @@
 # Dependency major-upgrade watch (monthly)
 
-You are tracking the **strategic** picture: how far each active project is from the framework-tier target versions the user has committed to. The sibling `dep-currency` task gives the broad ecosystem view; this task is narrow, curated, and slow-moving — a few framework packages where being a major version behind is a real plan-and-execute project, not a `pnpm up` away.
+You are tracking the **strategic** picture: how far each active project is from the framework-tier target versions the user has committed to. The sibling `dep-currency` task gives the broad ecosystem view; this task is narrow, project-deltaed, and slow-moving — a few framework packages where being a major version behind is a real plan-and-execute project, not a `pnpm up` away.
 
 Examples it should answer at a glance:
 - "Which projects are still on Next 15? When did each of them last attempt the upgrade?"
@@ -77,31 +77,31 @@ If `watchlist.md` is present but a tracked-package section is malformed, emit a 
 
 **2.1 — Probe project root and resolve workspaces.** Use the same explicit-Read + shallow-Glob procedure as `dep-vulnerabilities` step 1:
 
-- `Read` `personal/<project>/package.json` (Node single-package or monorepo root).
-- `Read` `personal/<project>/pnpm-workspace.yaml` (pnpm monorepo discriminator).
-- `Read` `personal/<project>/pyproject.toml`, `Cargo.toml`, `go.mod` for non-Node ecosystems.
-- `Read` `personal/<project>/Packages/manifest.json` and `personal/<project>/ProjectSettings/ProjectVersion.txt` for Unity at root.
-- For Unity nested layouts (Lume convention): also probe `personal/<project>/<ProjectNameCapitalized>App/Packages/manifest.json` and `personal/<project>/<ProjectName>/Packages/manifest.json`. Lume's specifically lives at `personal/lume/LumeApp/`.
-- For Node monorepos: parse `pnpm-workspace.yaml#packages` or root `package.json#workspaces`. For each pattern like `apps/*`, expand with shallow Glob `personal/<project>/apps/*/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/`.
+- `Read` `<project-root>/package.json` (Node single-package or monorepo root).
+- `Read` `<project-root>/pnpm-workspace.yaml` (pnpm monorepo discriminator).
+- `Read` `<project-root>/pyproject.toml`, `Cargo.toml`, `go.mod` for non-Node ecosystems.
+- `Read` `<project-root>/Packages/manifest.json` and `<project-root>/ProjectSettings/ProjectVersion.txt` for Unity at root.
+- For Unity nested layouts: also probe `<project-root>/<ProjectNameCapitalized>App/Packages/manifest.json` and `<project-root>/<ProjectName>/Packages/manifest.json`.
+- For Node monorepos: parse `pnpm-workspace.yaml#packages` or root `package.json#workspaces`. For each pattern like `apps/*`, expand with shallow Glob `<project-root>/apps/*/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/`.
 
 **2.2 — Read the lockfile at each workspace root.** Direct `Read` (not Glob):
-- pnpm: `personal/<project>/pnpm-lock.yaml` (single root lockfile for all workspaces).
-- bun: `personal/<project>/bun.lock` then `bun.lockb`.
-- npm: `personal/<project>/package-lock.json`.
-- yarn: `personal/<project>/yarn.lock`.
-- python: `personal/<project>/poetry.lock` or `uv.lock`.
-- rust: `personal/<project>/Cargo.lock`.
-- go: `personal/<project>/go.sum`.
+- pnpm: `<project-root>/pnpm-lock.yaml` (single root lockfile for all workspaces).
+- bun: `<project-root>/bun.lock` then `bun.lockb`.
+- npm: `<project-root>/package-lock.json`.
+- yarn: `<project-root>/yarn.lock`.
+- python: `<project-root>/poetry.lock` or `uv.lock`.
+- rust: `<project-root>/Cargo.lock`.
+- go: `<project-root>/go.sum`.
 - Unity: `<unity-root>/Packages/packages-lock.json`.
 
 **2.3 — Resolve each tracked watchlist package.** For each (package, project, workspace) tuple:
 - Look up the package in the lockfile to get the **resolved version**. Same parsing approach as `dep-vulnerabilities` step 2 (lockfile shapes).
 - If not in lockfile but declared in the workspace's `package.json` `dependencies`/`devDependencies`/`peerDependencies`, report the `declared range` and tag `(declared, not in lockfile — install drift)`.
-- If not present in the manifest at all, record `not-applicable` (this is fine — it means the package isn't part of this project's surface, e.g., `next` in Lume).
+- If not present in the manifest at all, record `not-applicable` (this is fine — it means the package isn't part of this project's surface, e.g., `next` in Project Zeta).
 
 **2.4 — Engine-tier specifics:**
-- `node`: `Read` `personal/<project>/package.json` and read `engines.node` (declared). Also `Read` `personal/<project>/.nvmrc` and `personal/<project>/.node-version` (literal pin) if present. If both `engines.node` and `.nvmrc` exist and disagree, report both with a `(mismatch)` flag.
-- `unity`: `Read` `<unity-root>/ProjectSettings/ProjectVersion.txt` and parse `m_EditorVersion:` value. `<unity-root>` is the path resolved in 2.1 (may be at `personal/<project>/` OR a nested sub-path like `personal/lume/LumeApp/`).
+- `node`: `Read` `<project-root>/package.json` and read `engines.node` (declared). Also `Read` `<project-root>/.nvmrc` and `<project-root>/.node-version` (literal pin) if present. If both `engines.node` and `.nvmrc` exist and disagree, report both with a `(mismatch)` flag.
+- `unity`: `Read` `<unity-root>/ProjectSettings/ProjectVersion.txt` and parse `m_EditorVersion:` value. `<unity-root>` is the path resolved in 2.1 and may be either the project root or a nested app directory.
 
 **2.5 — Optional: corroborate with `dep-currency`.** If a `dep-currency` audit from today exists in `audits/` AND it contains an actual per-project version table (i.e., it ran successfully — not a sandbox-skipped no-op), cross-check your lockfile-derived versions against it. If they disagree, log the disagreement and trust the lockfile (it's the canonical source). If the dep-currency artifact is a no-op stub or missing, just skip this corroboration step — do NOT skip the whole audit.
 
@@ -109,7 +109,7 @@ For monorepos with multiple workspaces declaring different versions of the same 
 
 If a specific `Read` call genuinely fails (the runner returns an error, not just empty data), record `unresolved (read-failed: <path>)` for that single (package, project, workspace) tuple — not for the whole project. Then move on. Do NOT halt the project's scan based on one failed Read.
 
-If the package is not present in the project at all (e.g., `next` in Lume — Unity project): record `not-applicable`. Don't flag — it just means the package isn't part of that project's surface.
+If the package is not present in the project at all (for example, `next` in a Unity project): record `not-applicable`. Don't flag — it just means the package isn't part of that project's surface.
 
 ### 3. Compute drift
 
@@ -159,11 +159,11 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-dep-major-upgrade-watch.md`:
 
 | Project | Workspace | Current | Effective target | Gap | Direction | Notes |
 |---|---|---|---|---|---|---|
-| tgsc | (root) | 16.2.4 | ^16 | 0 | on-target | — |
-| akaushik.org | (root) | 16.2.0 | ^16 | 0 | on-target | — |
-| neev | apps/web | 15.1.0 | ^16 | major | behind | upgrade plan TBD |
-| vericite | apps/admin | 15.0.0 | ^16 | major | behind | upgrade plan TBD |
-| lume | — | not-applicable | — | — | — | Unity project |
+| project-beta | (root) | 16.2.4 | ^16 | 0 | on-target | — |
+| project-gamma | (root) | 16.2.0 | ^16 | 0 | on-target | — |
+| project-alpha | apps/web | 15.1.0 | ^16 | major | behind | upgrade plan TBD |
+| project-epsilon | apps/admin | 15.0.0 | ^16 | major | behind | upgrade plan TBD |
+| project-zeta | — | not-applicable | — | — | — | Unity project |
 
 (Repeat per tracked package.)
 
@@ -171,7 +171,7 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-dep-major-upgrade-watch.md`:
 
 | Project | Major-behind on | Count | Estimated upgrade order |
 |---|---|---|---|
-| neev | next, react | 2 | next first (React 19 is the gate Next 16 already ships with) |
+| project-alpha | next, react | 2 | next first (React 19 is the gate Next 16 already ships with) |
 
 (Surfaces highest-leverage upgrade candidates.)
 
@@ -197,7 +197,7 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-dep-major-upgrade-watch.md`:
 | Project | Package | Previous current | Now | Status change |
 |---|---|---|---|---|
 
-(E.g., "tgsc · next: 16.1.0 → 16.2.4 (still on-target)" or "neev · next: 15.0.3 → 15.1.0 (still major-behind, intra-major progress).)
+(E.g., "project-beta · next: 16.1.0 → 16.2.4 (still on-target)" or "project-alpha · next: 15.0.3 → 15.1.0 (still major-behind, intra-major progress).)
 
 ## Cross-cutting observations
 
@@ -217,8 +217,8 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-dep-major-upgrade-watch.md`:
 ## Boundaries
 
 - **Read-only.** Do not modify `watchlist.md`. Do not modify any project lockfile or manifest. The audit reports; the user decides which majors to lift.
-- Do not auto-resolve overrides — if the watchlist says "vericite stays on next 15", trust it.
-- Do not perform reachability or compatibility analysis. "Can Neev upgrade to Next 16?" is out of scope; this task answers "where are they relative to the target."
+- Do not auto-resolve overrides — if the watchlist says "project-epsilon stays on next 15", trust it.
+- Do not perform reachability or compatibility analysis. "Can Project Alpha upgrade to Next 16?" is out of scope; this task answers "where are they relative to the target."
 - HTTP traffic only to public registries (npm, pypi, crates.io, proxy.golang.org, nodejs.org).
 
 ## Sensible failure modes

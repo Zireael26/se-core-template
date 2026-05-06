@@ -53,6 +53,8 @@ done
 
 # Files / dirs to sync from live → template
 SYNC_PATHS=(
+  "CLAUDE.md"
+  "AGENTS.md"
   "engineering-process.md"
   "core-rules/CLAUDE.md"
   "core-rules/AGENTS.md"
@@ -79,6 +81,11 @@ NEVER_SYNC=(
 # Placeholder substitutions: live values → template placeholders
 declare -a SUB_FROM=("$SE_CORE_ROOT" "$SOURCE_ROOT" "$PROJECTS_ROOT" "$USER_HOME" "$MAINTAINER_NAME" "$GITHUB_USER")
 declare -a SUB_TO=("__SE_CORE_PATH__" "__SE_CORE_PATH__" "__PROJECTS_ROOT__" "__USER_HOME__" "__MAINTAINER_NAME__" "__GITHUB_USER__")
+while IFS=$'\t' read -r from to; do
+  [ -n "$from" ] || continue
+  SUB_FROM+=("$from")
+  SUB_TO+=("$to")
+done < <(jq -r '.template.extra_redactions[]? | [.from, .to] | @tsv' "$SE_CORE_CONFIG_PATH")
 
 # --- Workspace -------------------------------------------------------------
 TMP_STAGE="$(mktemp -d)"
@@ -122,7 +129,7 @@ if [ -f "$TMP_STAGE/se-core.config.json" ]; then
   cat > "$TMP_STAGE/se-core.config.json" <<'EOF'
 {
   "$schema": "./scripts/lib/se-core.config.schema.json",
-  "comment": "Edit this file after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, sync-codex-hooks.sh, or sync-to-template.sh. Keep harnesses as [\"claude\"] for Claude-only installs; add \"codex\" when opting into Codex parity.",
+  "comment": "Edit this file after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, sync-codex-hooks.sh, or sync-to-template.sh. The template defaults to Claude Code and Codex; remove a harness only if you intentionally do not use it.",
 
   "se_core_root": "__SE_CORE_PATH__",
   "projects_root": "__PROJECTS_ROOT__",
@@ -131,7 +138,7 @@ if [ -f "$TMP_STAGE/se-core.config.json" ]; then
   "maintainer_name": "__MAINTAINER_NAME__",
   "github_user": "__GITHUB_USER__",
 
-  "harnesses": ["claude"],
+  "harnesses": ["claude", "codex"],
 
   "template": {
     "remote": "git@github.com:__GITHUB_USER__/se-core-template.git",
@@ -140,7 +147,8 @@ if [ -f "$TMP_STAGE/se-core.config.json" ]; then
       "audits/",
       "blacklist.md",
       "registry.md"
-    ]
+    ],
+    "extra_redactions": []
   },
 
   "sed_flavor": "auto"

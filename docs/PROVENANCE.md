@@ -10,7 +10,7 @@ github.com/iamfakeguru/claude-md   (MIT)
         │   Seed: block-destructive, post-edit-verify, stop-verify, truncation-check
         │   hooks. Two-tier hook architecture concept.
         ▼
-SE Core (live)                     (Zireael26/se-core, private; this template's source)
+SE Core (live)                     (private source repository)
         │
         │   Extensions: three-tier hook architecture (fast-local + heavy-gated + git-boundary),
         │   stop-verify TodoWrite guard, code-review-subagent + ui-verify hook skeletons,

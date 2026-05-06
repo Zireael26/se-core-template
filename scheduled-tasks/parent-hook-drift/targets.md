@@ -34,11 +34,11 @@ hook.
 Projects are allowed to have hooks beyond the canonical set. Known extras:
 
 ```
-msme-neev: check-module-boundary.sh
+# project-name: local-hook-name.sh
 ```
 
-No other project-specific hooks as of 2026-04-20. If new ones appear, add
-them here so they're not flagged as "unexpected".
+If project-specific hooks appear, add them here so they're documented as
+intentional local extensions.
 
 ## Universally allowed config files
 

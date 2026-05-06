@@ -1,8 +1,8 @@
 # AGENT_SETUP.md — paste-into-agent prompt
 
-> **For the human:** clone this repo, then paste **everything below the `--- BEGIN PROMPT ---` line** into Claude Code, Codex, or any agent conversation that has filesystem and shell tools. The agent will interview you, replace placeholders across the repo, ask whether to enable Codex parity, install inheritance symlinks, seed hooks, and update the registry.
+> **For the human:** clone this repo, then paste **everything below the `--- BEGIN PROMPT ---` line** into an agent conversation that has filesystem and shell tools (Claude Code, Codex, Cowork, or any agent that can read, edit, and run shell commands). The agent will interview you, replace placeholders across the repo, install the inheritance symlinks in your projects, seed hooks/skills for the configured harnesses, and update the registry.
 >
-> Make sure the session has the cloned repo available — open the agent from inside it, for example `cd ~/projects/se-core && claude` or `cd ~/projects/se-core && codex`.
+> Make sure the agent session has the cloned repo available — open the agent from inside it, or connect the cloned folder in the app you are using.
 
 ---
 
@@ -15,8 +15,8 @@ You are bootstrapping **SE Core** — a multi-project engineering-process contro
 Before touching anything, read these files in order so you understand the system:
 
 1. `README.md` — high-level overview and the placeholder list.
-2. `core-rules/CLAUDE.md` — the parent rules every project will inherit (~5 KB).
-3. `core-rules/inheritance.md` — the load-bearing Claude Code and Codex inheritance mechanisms.
+2. `core-rules/CLAUDE.md` and `core-rules/AGENTS.md` — the parent rules every project will inherit (~5 KB, shared by both harnesses).
+3. `core-rules/inheritance.md` — the load-bearing inheritance mechanism (this is critical; it's how rules reach Claude Code and Codex sessions).
 4. `core-rules/hooks.md` — the three-tier hook architecture and harness-specific hook envelopes.
 5. `engineering-process.md` §§1-5 only at this stage — the narrative manual; sections 1-5 cover philosophy, control plane, and project regime. Skip the rest until later.
 
@@ -27,11 +27,11 @@ After reading, confirm to the user in one short paragraph what SE Core is and wh
 Use whatever clarification mechanism your tooling provides (multi-choice question tool if available, or just ask in chat). You need five values and one harness choice:
 
 - `__SE_CORE_PATH__` — absolute path to this cloned repo. **Auto-detect** from your current working directory using `pwd` (run it with `bash`); confirm with the user before using it.
-- `__PROJECTS_ROOT__` — absolute path to the parent dir holding the user's personal projects. Examples: `/Users/<user>/projects/personal`, `/home/<user>/code`. Default the suggestion to a sibling of `__SE_CORE_PATH__` named `personal`. Confirm with the user.
+- `__PROJECTS_ROOT__` — absolute path to the parent dir holding the user's projects. Examples: `/path/to/workspace/projects`, `/home/<user>/code`. Default the suggestion to a sibling of `__SE_CORE_PATH__` named `projects`. Confirm with the user.
 - `__MAINTAINER_NAME__` — the user's display name (used in `engineering-process.md`).
 - `__GITHUB_USER__` — the user's GitHub username (referenced in audit examples and registry comments).
 - `__USER_HOME__` — the user's home directory. Auto-detect via `echo $HOME`; confirm.
-- Harness support — ask whether the user wants **Claude-only** (default) or **Claude + Codex**. Keep Claude-only unless they explicitly choose Codex parity.
+- Harness support — ask whether the user wants **Claude + Codex** (default), **Claude-only**, or **Codex-only**. Keep both unless they explicitly remove one.
 
 Echo the five values plus harness choice back to the user in a clear table and ask "Should I proceed with these?" Wait for explicit yes.
 
@@ -76,16 +76,20 @@ If anything matches, fix it before continuing. Report findings to the user.
 
 ### Step 2b — Apply harness choice
 
-If the user chose Claude-only, keep:
+If the user keeps the default Claude + Codex setup, leave `se-core.config.json` as:
+
+```json
+"harnesses": ["claude", "codex"]
+```
+
+If the user chose Claude-only or Codex-only, remove the unused harness:
 
 ```json
 "harnesses": ["claude"]
 ```
 
-If the user chose Claude + Codex, update `se-core.config.json` to:
-
 ```json
-"harnesses": ["claude", "codex"]
+"harnesses": ["codex"]
 ```
 
 For Codex parity, also tell the user that Codex hooks require this user-level config:

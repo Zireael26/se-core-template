@@ -57,7 +57,7 @@ Run these checks against each target project's root. Do **not** modify files —
 - Missing or untracked native hooks → **critical: SE Core PR-flow guard not enforced**.
 - Husky presence is **N/A** for projects without `package.json` — do not emit a husky-missing finding for them. The class hint comes from the project's row in `registry.md` (e.g., `game (Unity, 3D)`).
 
-Reference example: `lume` uses `.githooks/pre-push` with `core.hooksPath = .githooks`.
+Reference example: `project-zeta` uses `.githooks/pre-push` with `core.hooksPath = .githooks`.
 
 ### 4. `--no-verify` bypass history
 - Run `git log --since="8 days ago" --grep="no-verify"` in each project.

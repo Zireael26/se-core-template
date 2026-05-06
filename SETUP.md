@@ -11,7 +11,7 @@ Total time: ~30 minutes if you have one project to onboard, +5 minutes per addit
 - macOS or Linux
 - `bash`, `git`, `jq`, `grep`, `sed` on `PATH`
 - Node.js (only required if your projects use husky-managed git hooks)
-- A directory for your personal projects (e.g., `~/projects/personal/`) where each project is its own git repo
+- A directory for your projects where each project is its own git repo
 - Claude Code and/or Codex installed
 - For Codex hooks: Codex CLI with hooks support and `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`
 
@@ -22,9 +22,9 @@ Total time: ~30 minutes if you have one project to onboard, +5 minutes per addit
 Pick a stable home for SE Core. Convention is alongside your projects directory:
 
 ```bash
-mkdir -p ~/projects
-cd ~/projects
-git clone https://github.com/Zireael26/se-core-template.git se-core
+mkdir -p /path/to/workspace
+cd /path/to/workspace
+git clone https://github.com/<template-owner>/se-core-template.git se-core
 cd se-core
 ```
 
@@ -48,16 +48,16 @@ Open a scratch buffer and write down:
 | `__PROJECTS_ROOT__`    | Absolute path to the parent dir of your projects     |
 | `__MAINTAINER_NAME__`  | Your name                                            |
 | `__GITHUB_USER__`      | Your GitHub username                                 |
-| `__USER_HOME__`        | Your home directory (e.g., `/Users/jane`)            |
+| `__USER_HOME__`        | Your home directory (e.g., `/home/jane`)             |
 
 Example for a user named "Jane Doe":
 
 ```
-__SE_CORE_PATH__    = /Users/jane/projects/se-core
-__PROJECTS_ROOT__   = /Users/jane/projects/personal
+__SE_CORE_PATH__    = /path/to/workspace/se-core
+__PROJECTS_ROOT__   = /path/to/workspace/projects
 __MAINTAINER_NAME__ = Jane Doe
 __GITHUB_USER__     = janedoe
-__USER_HOME__       = /Users/jane
+__USER_HOME__       = /home/jane
 ```
 
 ---
@@ -67,11 +67,11 @@ __USER_HOME__       = /Users/jane
 From the `se-core` root, run a sed pass for each placeholder. The exclusion list keeps `.git/`, `LICENSE`, `README.md`, `SETUP.md`, and `AGENT_SETUP.md` from being touched (they reference the placeholders by literal name as documentation).
 
 ```bash
-SE_CORE_PATH="/Users/jane/projects/se-core"          # <-- edit
-PROJECTS_ROOT="/Users/jane/projects/personal"        # <-- edit
+SE_CORE_PATH="/path/to/workspace/se-core"            # <-- edit
+PROJECTS_ROOT="/path/to/workspace/projects"          # <-- edit
 MAINTAINER_NAME="Jane Doe"                           # <-- edit
 GITHUB_USER="janedoe"                                # <-- edit
-USER_HOME="/Users/jane"                              # <-- edit
+USER_HOME="/home/jane"                               # <-- edit
 
 # macOS sed needs `-i ''`; GNU sed (Linux) needs `-i`.
 SED_INPLACE=(-i '')   # macOS
@@ -101,19 +101,15 @@ grep -rn "__SE_CORE_PATH__\|__PROJECTS_ROOT__\|__MAINTAINER_NAME__\|__GITHUB_USE
 
 ## 4. Choose harness support
 
-The template defaults to Claude-only:
-
-```json
-"harnesses": ["claude"]
-```
-
-To enable Codex parity, edit `se-core.config.json`:
+The template defaults to both Claude Code and Codex:
 
 ```json
 "harnesses": ["claude", "codex"]
 ```
 
 Codex-enabled onboarding seeds root `AGENTS.md`, `.agents/rules/se-core.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh`.
+
+If you intentionally use only one harness, remove the unused entry from `se-core.config.json`.
 
 For Codex hooks, also confirm your user config has:
 
@@ -126,10 +122,10 @@ codex_hooks = true
 
 ## 5. Onboard your first project
 
-Pick one of your existing personal projects and onboard it. The script seeds the inheritance symlink, the project-local files (`gotchas.md`, `context-log.md`), and (if it's a Node project) the husky hook stack.
+Pick one of your existing projects and onboard it. The script seeds the inheritance symlink, the project-local files (`gotchas.md`, `context-log.md`), and (if it's a Node project) the husky hook stack.
 
 ```bash
-./scripts/onboard-project.sh /Users/jane/projects/personal/my-app
+./scripts/onboard-project.sh /path/to/workspace/projects/my-app
 ```
 
 Read the script's "Next steps" output carefully — it asks you to:
@@ -140,7 +136,7 @@ Read the script's "Next steps" output carefully — it asks you to:
 4. Run `pnpm install` / `bun install` / `npm install` so husky activates.
 5. Add a row to `registry.md` here in `se-core/`.
 
-After onboarding 1–3 projects, you'll see the system pay off — the `cross-project-process-audit` will start surfacing real findings.
+With the default `harnesses: ["claude", "codex"]`, onboarding also seeds Codex support: a root `AGENTS.md` entrypoint when safe plus `.agents/rules/` and `.agents/skills/` symlinks. After onboarding 1–3 projects, you'll see the system pay off — the `cross-project-process-audit` will start surfacing real findings.
 
 ---
 

@@ -76,6 +76,6 @@ Project-singleton entries — log only, no action this month.
 
 ## Notes on coverage
 
-- **project-a** (`/personal/project-a/gotchas.md`) is empty as of this rollup. Given Project-A is the largest active project and the seed for many `deferred.md` entries, an empty gotchas log is itself worth a sanity check — either lessons aren't being captured at the project level, or activity in this period genuinely produced none. No action taken; just flagging.
-- **project-c** (`/personal/project-c/gotchas.md`) is empty, consistent with `registry.md` noting "Lower activity; include when next touched."
+- **project-a** (`__PROJECTS_ROOT__/project-a/gotchas.md`) is empty as of this rollup. Given Project-A is the largest active project and the seed for many `deferred.md` entries, an empty gotchas log is itself worth a sanity check — either lessons aren't being captured at the project level, or activity in this period genuinely produced none. No action taken; just flagging.
+- **project-c** (`__PROJECTS_ROOT__/project-c/gotchas.md`) is empty, consistent with `registry.md` noting "Lower activity; include when next touched."
 - All six target projects had a `gotchas.md` present in the expected location; no parse errors; no projects skipped for malformed input.

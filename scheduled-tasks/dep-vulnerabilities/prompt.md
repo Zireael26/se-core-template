@@ -55,18 +55,18 @@ Work via file tools, not bash, for everything project-local.
 
 **Step 1.1 — Probe the project root.** For each target `<project>`, attempt `Read` (one at a time; "file not found" is expected for irrelevant ecosystems):
 
-- `personal/<project>/package.json` — Node single-package or monorepo root
-- `personal/<project>/pnpm-workspace.yaml` — pnpm monorepo discriminator
-- `personal/<project>/pyproject.toml` — Python
-- `personal/<project>/Cargo.toml` — Rust
-- `personal/<project>/go.mod` — Go
-- `personal/<project>/Packages/manifest.json` — Unity at root
-- `personal/<project>/ProjectSettings/ProjectVersion.txt` — Unity at root
+- `<project-root>/package.json` — Node single-package or monorepo root
+- `<project-root>/pnpm-workspace.yaml` — pnpm monorepo discriminator
+- `<project-root>/pyproject.toml` — Python
+- `<project-root>/Cargo.toml` — Rust
+- `<project-root>/go.mod` — Go
+- `<project-root>/Packages/manifest.json` — Unity at root
+- `<project-root>/ProjectSettings/ProjectVersion.txt` — Unity at root
 
-**Step 1.2 — Unity nested-app probe.** If neither root `Packages/manifest.json` nor root `ProjectSettings/ProjectVersion.txt` was found AND the project's class in registry includes "game/Unity", probe these conventional nested layouts (Lume uses `LumeApp/`):
+**Step 1.2 — Unity nested-app probe.** If neither root `Packages/manifest.json` nor root `ProjectSettings/ProjectVersion.txt` was found AND the project's class in registry includes "game/Unity", probe these conventional nested layouts:
 
-- `personal/<project>/<ProjectNameCapitalized>App/Packages/manifest.json`
-- `personal/<project>/<ProjectName>/Packages/manifest.json`
+- `<project-root>/<ProjectNameCapitalized>App/Packages/manifest.json`
+- `<project-root>/<ProjectName>/Packages/manifest.json`
 
 If found, set the Unity project root accordingly. If not found anywhere, emit `info` (`<project>: Unity manifest not found at root or conventional sub-paths`) and skip Unity scanning for the project.
 
@@ -74,9 +74,9 @@ If found, set the Unity project root accordingly. If not found anywhere, emit `i
 
 For each workspace pattern, expand with a **shallow** Glob — replace the trailing `*` (or `**`) with a concrete depth-1 match against `package.json`:
 
-- Pattern `apps/*` → Glob `personal/<project>/apps/*/package.json`
-- Pattern `packages/*` → Glob `personal/<project>/packages/*/package.json`
-- Pattern `*` → Glob `personal/<project>/*/package.json` (rare, but supported)
+- Pattern `apps/*` → Glob `<project-root>/apps/*/package.json`
+- Pattern `packages/*` → Glob `<project-root>/packages/*/package.json`
+- Pattern `*` → Glob `<project-root>/*/package.json` (rare, but supported)
 - Pattern `apps/**` (deep) → flatten to depth-2 with `apps/*/package.json` and `apps/*/*/package.json`; do NOT use `apps/**/package.json` literally.
 
 **Post-filter Glob results.** The Glob tool in this runner is noisy — it can return paths under build artifact directories that match the filename. After every Glob, drop any result whose path contains any of these segments anywhere:

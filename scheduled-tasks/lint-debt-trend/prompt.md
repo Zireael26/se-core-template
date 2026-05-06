@@ -53,7 +53,7 @@ Format: one row per project, one column per tool, with deltas in parens.
 ```
 | Project | TS errors | ESLint warnings | Ruff warnings | Trend |
 |---|---|---|---|---|
-| msme-neev | 0 (→) | 12 (+3 WoW) | — | ⚠️ regression |
+| legacy-project-alpha | 0 (→) | 12 (+3 WoW) | — | ⚠️ regression |
 | ... | | | | |
 ```
 
@@ -71,6 +71,6 @@ actionable signal would train the pipeline to be ignored.
 Turn this on when either:
 - Any Tier 1 task (especially `cross-project-process-audit`) starts
   reporting warning creep as a recurring finding, or
-- A project's PR-review volume starts catching lint warnings as a
+- A project's PR-review voproject-zeta starts catching lint warnings as a
   not-trivial fraction of comments, or
 - 6 months have passed and we just want to see the trend.

@@ -1,6 +1,6 @@
 # Deferred rules
 
-Rules that are **candidates** for the parent layer but haven't earned their place yet. Each was seen in only one of the two reference projects (Neev, TGSC), or was seen in both with enough variation that lifting now would force a false abstraction.
+Rules that are **candidates** for the parent layer but haven't earned their place yet. Each was seen in only one or two reference projects, or was seen with enough variation that lifting now would force a false abstraction.
 
 Promotion criterion: a **third active project** independently adopts the rule (or a close variant). At that point, move it into `CLAUDE.md` or `hooks.md` as appropriate, note the three sources, and delete it here.
 
@@ -13,51 +13,51 @@ Ground truth for why this file exists: Rule of Three. `n=2` is the danger zone �
 ## Rules (narrative form, lift when a third project confirms)
 
 ### Two-perspective review
-**Source:** Neev.
+**Source:** Project Alpha.
 **What:** on non-trivial work, present a perfectionist critique alongside a pragmatist acceptance before proposing an action.
-**Why defer:** valuable in Neev because features span multiple packages and trade-offs are routinely contested. Smaller projects may not benefit from the overhead.
+**Why defer:** valuable in a large multi-package product because features span multiple packages and trade-offs are routinely contested. Smaller projects may not benefit from the overhead.
 **Lift when:** two more projects independently find value in the structured two-voice pattern (bringing total sources to 3).
 
 ### Fresh-eyes / new-user testing persona
-**Source:** Neev.
+**Source:** Project Alpha.
 **What:** when asked to test your own output, adopt a new-user persona and walk through as if you've never seen the project.
 **Why defer:** strong testing heuristic but unclear it fits every project class (e.g., an internal CLI tool has no "new user" in the normal sense).
-**Lift when:** two more projects — ideally in different classes from Neev's multi-tenant SaaS — adopt the persona.
+**Lift when:** two more projects — ideally in different classes from the original multi-tenant SaaS — adopt the persona.
 
 ### Bug autopsy after fix
-**Source:** Neev.
+**Source:** Project Alpha.
 **What:** after fixing a bug, explain root cause and whether a category-level prevention is possible (lint rule, test, type, invariant).
-**Why defer:** requires meaningful bug volume to be worth the ceremony. Greenfield or small projects may not hit the threshold.
+**Why defer:** requires meaningful bug voproject-zeta to be worth the ceremony. Greenfield or small projects may not hit the threshold.
 **Lift when:** two more projects reach enough operational maturity to want systematic autopsies.
 
 ### PR size soft-target 400 / hard-ceiling 800
-**Source:** TGSC.
+**Source:** Project Beta.
 **What:** PRs should aim for ≤400 changed lines; ceiling at 800. Larger PRs require justification.
-**Why defer:** TGSC is a single Next.js app. Neev is a monorepo where cross-package refactors legitimately cross 800 lines. The numbers need per-project tuning before being a parent rule.
+**Why defer:** the first source is a single Next.js app, while another reference project is a monorepo where cross-package refactors legitimately cross 800 lines. The numbers need per-project tuning before being a parent rule.
 **Lift when:** two more projects validate *some* numeric target works cross-class (n=3 total). At that point, lift the pattern (with project override) rather than specific numbers.
 
 ### ADR numbered-sequential doc folder
-**Source:** TGSC.
+**Source:** Project Beta.
 **What:** `docs/adr/NNNN-<slug>.md` with a fixed template (context, decision, consequences, status).
-**Why defer:** Neev already captures the same decisions in tech-spec docs with a different layout. Picking TGSC's shape over Neev's at n=1 each is arbitrary.
+**Why defer:** another project already captures the same decisions in tech-spec docs with a different layout. Picking either shape at n=1 each is arbitrary.
 **Lift when:** two more projects converge on one of the two layouts (n=3 total on that layout); lift the winner.
 
 ### Tech-spec-check CI job
-**Source:** Neev.
+**Source:** Project Alpha.
 **What:** CI blocks merges for changes past a size threshold without a corresponding tech spec doc.
-**Why defer:** heavily coupled to Neev's EPM (engineering program management) flow. Worth lifting eventually but not yet.
+**Why defer:** heavily coupled to one project's engineering program management flow. Worth lifting eventually but not yet.
 **Lift when:** two more projects adopt a tech-spec requirement gate.
 
 ### PR-size-check CI job
-**Source:** Neev.
+**Source:** Project Alpha.
 **What:** CI surfaces PR line count and warns past the soft target. Sibling to the PR size rule above.
 **Why defer:** same reasoning as the PR-size rule — numbers need per-project tuning. Lift together with the rule it enforces.
 **Lift when:** PR-size rule is lifted.
 
 ### axe-core accessibility tests in CI
-**Source:** TGSC.
+**Source:** Project Beta.
 **What:** automated a11y scan on every build; blocks on new violations.
-**Why defer:** TGSC is a public marketing site where a11y is a launch-gate. An internal tool or API service may not need this floor. Better as a project-local rule for user-facing projects.
+**Why defer:** the source is a public marketing site where a11y is a launch-gate. An internal tool or API service may not need this floor. Better as a project-local rule for user-facing projects.
 **Lift when:** two more user-facing projects adopt it *and* we can write a criterion for which projects should require it (not blanket).
 
 ---

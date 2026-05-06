@@ -1,6 +1,6 @@
 # Dependency currency (weekly)
 
-You are checking how **out-of-date** each active project's dependencies are. The sibling `dep-vulnerabilities` task tracks security; this task tracks staleness — patch behind, minor behind, major behind. Major-version drift on framework-tier packages (Next, React, Node, TypeScript, etc.) is also reported by `dep-major-upgrade-watch`; this task is the broad ecosystem view, that one is the curated framework view. They corroborate each other.
+You are checking how **out-of-date** each active project's dependencies are. The sibling `dep-vulnerabilities` task tracks security; this task tracks staleness — patch behind, minor behind, major behind. Major-version drift on framework-tier packages (Next, React, Node, TypeScript, etc.) is also reported by `dep-major-upgrade-watch`; this task is the broad ecosystem view, that one is the project-deltaed framework view. They corroborate each other.
 
 ## Execution model (read this — supersedes any "host required" wording in older runs)
 
@@ -54,8 +54,8 @@ Read-only via file tools.
 **Do NOT use `**`-recursive globs.** They flood with `node_modules/`, `.codex/`, `.codex-backup-*/`, `.claude/worktrees/<agent>/`, and similar. Use the same explicit-Read + shallow-Glob procedure as `dep-vulnerabilities`:
 
 - **Probe project root** with `Read` calls for canonical files (`package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Packages/manifest.json`, `ProjectSettings/ProjectVersion.txt`).
-- **Unity nested-app probe**: if root has no Unity files and class is "game/Unity", try `<ProjectNameCapitalized>App/` and `<ProjectName>/` sub-paths (Lume convention is `LumeApp/`).
-- **Workspace expansion**: parse `pnpm-workspace.yaml` `packages:` field or root `package.json#workspaces`. For each pattern like `apps/*`, use a shallow Glob `personal/<project>/apps/*/package.json` — never `apps/**/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/` — Glob is suffix-matching and returns build-artifact paths that need to be filtered out.
+- **Unity nested-app probe**: if root has no Unity files and class is "game/Unity", try `<project-root>/<ProjectNameCapitalized>App/` and `<project-root>/<ProjectName>/` sub-paths.
+- **Workspace expansion**: parse `pnpm-workspace.yaml` `packages:` field or root `package.json#workspaces`. For each pattern like `apps/*`, use a shallow Glob `<project-root>/apps/*/package.json` — never `apps/**/package.json`. Post-filter Glob results to drop paths containing `node_modules/`, `.next/`, `.nuxt/`, `.turbo/`, `.codex/`, `.codex-backup-`, `.claude/worktrees/`, `.git/`, `dist/`, `build/`, `out/`, `target/`, `Library/PackageCache/`, `.venv/`, `venv/`, `.svelte-kit/`, `__pycache__/` — Glob is suffix-matching and returns build-artifact paths that need to be filtered out.
 - **Lockfile location**: `Read` (don't Glob) the canonical lockfile at each workspace root: `pnpm-lock.yaml`, `bun.lock`/`bun.lockb`, `package-lock.json`, `yarn.lock`, `poetry.lock`/`uv.lock`/`Pipfile.lock`, `Cargo.lock`, `go.sum`. pnpm uses a single project-root lockfile for all workspaces.
 
 Tag each (project, workspace_path, ecosystem) tuple.
@@ -131,7 +131,7 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-dep-currency.md`:
 
 | Project | Workspace | Package | Current | Latest | Days behind | Notes |
 |---|---|---|---|---|---|---|
-| neev | apps/web | next | 15.1.0 | 16.2.4 | <N> | also tracked in dep-major-upgrade-watch |
+| project-alpha | apps/web | next | 15.1.0 | 16.2.4 | <N> | also tracked in dep-major-upgrade-watch |
 
 (Sort by days-behind descending. Cross-reference dep-major-upgrade-watch where applicable.)
 

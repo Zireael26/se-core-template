@@ -1,8 +1,8 @@
 # SE Core Template
 
-A starter for **Software Engineering Core** — a parent/child engineering-process regime for solo developers running multiple Claude Code and Codex projects. SE Core gives you:
+A starter for **Software Engineering Core** — a parent/child engineering-process regime for developers running multiple Claude Code and Codex projects. SE Core gives you:
 
-- **Cross-project rules in one place** (`core-rules/CLAUDE.md`) that every registered project inherits, with Codex parity through `AGENTS.md` and `.agents/`.
+- **Cross-project rules in one place** (`core-rules/CLAUDE.md`) that every registered project inherits through Claude Code (`CLAUDE.md` / `.claude/`) and Codex (`AGENTS.md` / `.agents/`) entrypoints.
 - **Harness-specific hook stacks**: Claude Code uses `.claude/hooks/`; Codex uses `.codex/hooks.json` and `.codex/hooks/`; both share the same policy intent.
 - **A process-gate skill** exposed through both `.claude/skills/process-gate` and `.agents/skills/process-gate` when Codex is enabled.
 - **A scheduled audit fleet** (10 Tier-1 audits) that scans every registered project weekly/monthly for hook drift, dependency posture, test health, bypass attempts, and process compliance — writing reports to `audits/`.
@@ -69,11 +69,11 @@ Three placeholders appear throughout the repo. Setup replaces them in-place:
 
 | Placeholder            | What it becomes                                                | Example                            |
 |------------------------|----------------------------------------------------------------|------------------------------------|
-| `__SE_CORE_PATH__`     | Absolute path where you cloned this repo                       | `/Users/jane/projects/se-core`     |
-| `__PROJECTS_ROOT__`    | Absolute path to the parent dir holding your projects          | `/Users/jane/projects/personal`    |
+| `__SE_CORE_PATH__`     | Absolute path where you cloned this repo                       | `/path/to/se-core`                 |
+| `__PROJECTS_ROOT__`    | Absolute path to the parent dir holding your projects          | `/path/to/projects`                |
 | `__MAINTAINER_NAME__`  | Your name (used in `engineering-process.md`)                   | `Jane Doe`                         |
 | `__GITHUB_USER__`      | Your GitHub username (referenced in audit-flow examples)       | `janedoe`                          |
-| `__USER_HOME__`        | Your home directory (rare — only in a couple of legacy refs)   | `/Users/jane`                      |
+| `__USER_HOME__`        | Your home directory (rare — only in a couple of legacy refs)   | `/home/jane`                       |
 
 `AGENT_SETUP.md` walks an LLM through asking you for these values, choosing harnesses, and substituting them.
 
@@ -81,7 +81,7 @@ Three placeholders appear throughout the repo. Setup replaces them in-place:
 
 - **macOS or Linux** with `bash`, `git`, and `jq` on `PATH`. Hooks degrade gracefully if jq is missing.
 - **Node.js** if any of your projects use husky-managed git hooks. (For Unity / Rust / Go / Python-only projects, see `core-rules/inheritance.md` "Native git hooks".)
-- **Claude Code and/or Codex**. The template defaults to Claude-only in `se-core.config.json`; add `"codex"` to `harnesses` when you want Codex parity.
+- **Claude Code and/or Codex**. The default config enables both harnesses. Claude Code uses `.claude/`; Codex uses `AGENTS.md`, `.agents/`, `.codex/hooks.json`, and `.codex/hooks/`. You can remove either harness from `se-core.config.json` if you intentionally do not use it.
 - **Codex hooks opt-in** requires Codex CLI with hooks support and `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`.
 
 ## License

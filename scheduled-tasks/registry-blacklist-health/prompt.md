@@ -1,6 +1,6 @@
 # Registry & blacklist health (weekly)
 
-You are verifying the control-plane files — `registry.md` and `blacklist.md` — are in good shape. This check runs BEFORE the other weekly audits so that downstream tasks see an accurate target list.
+You are verifying the control-plane files — `registry.md` and `blacklist.md` — are in good shape. This check runs BEFORE the other weekly audits so that downstream tasks see an acproject-deltae target list.
 
 ## Canonical paths (authoritative)
 

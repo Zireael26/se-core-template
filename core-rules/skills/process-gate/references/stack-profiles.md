@@ -15,17 +15,17 @@ Typical validators contributors add at the project level:
 - `check-input-font-size.sh` — iOS-zoom guard (input fields ≥ 16px to prevent zoom on focus).
 - `check-phrases.sh` — forbidden-phrase list (brand voice).
 
-These are project-specific implementations; the canonical layer doesn't ship them. TGSC's `.claude/skills/process-gate/scripts/` is a worked example.
+These are project-specific implementations; the canonical layer doesn't ship them. Keep worked examples in project-local docs until a validator is promoted.
 
 ### `monorepo-pnpm` — pnpm-workspace monorepos
 
 Common validators:
 
-- `check-module-boundary.sh` — package import-boundary enforcement (e.g., `@neev/orders` may not import from `@neev/inventory`).
+- `check-module-boundary.sh` — package import-boundary enforcement (for example, one workspace package may not import from another forbidden layer).
 - `check-package-graph.sh` — circular-dep detection.
 - `check-scope-allowlist.sh` — Conventional-Commit scope must match a workspace package name.
 
-Neev is the worked example.
+Keep worked examples project-local until a validator is promoted.
 
 ### `unity` — Unity / native game projects
 
@@ -35,7 +35,7 @@ Common validators:
 - `check-asset-bundle.sh` — `.unity` and `.prefab` files don't have merge-conflict markers.
 - `check-no-binary-bloat.sh` — diff size sanity for binary assets.
 
-Lume is the only current adopter; canonical Unity profile defers to Rule of Three (n=1 today).
+The canonical Unity profile defers to Rule of Three until three independent game/native projects need the same validator shape.
 
 ### `native-other` — Rust / Go / Python / etc.
 
@@ -86,8 +86,8 @@ When three independent projects adopt a close variant of the same validator, pro
 
 Profiles waiting for a third witness queue in `core-rules/deferred.md`.
 
-## Lume carve-out
+## Unity carve-out
 
-Lume (Unity, 3D) is the sole `unity`-profile project. Stack-specific validators are project-local until n=2. The canonical six gates still apply.
+Unity/native game projects can declare `PROCESS_GATE_STACK_PROFILE="unity"`. Stack-specific validators are project-local until the Rule of Three promotes them. The canonical six gates still apply.
 
-Lume's row in `registry.md` documents the carve-out. The extended `parent-hook-drift` audit treats `PROCESS_GATE_STACK_PROFILE="unity"` with no canonical scripts as expected, not drift.
+Document the carve-out in the project's `registry.md` row. The extended `parent-hook-drift` audit treats `PROCESS_GATE_STACK_PROFILE="unity"` with no canonical scripts as expected, not drift.

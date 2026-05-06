@@ -23,9 +23,9 @@ Override the default lockfile detection or scanner command for a specific projec
 # <project-name> [<workspace-path>]: <command>
 ```
 
-E.g., for a Neev workspace with a non-standard layout:
+E.g., for a Project Alpha workspace with a non-standard layout:
 ```
-# neev [apps/api]: skip — workspace uses an internal-only registry not reachable from sandbox
+# project-alpha [apps/api]: skip — workspace uses an internal-only registry not reachable from sandbox
 ```
 
 No overrides set as of 2026-05-01.
@@ -41,7 +41,7 @@ Projects that can't be vuln-scanned automatically.
 Default skips for the current registry as of 2026-05-01:
 
 ```
-# (none — Lume is auto-handled inside the prompt: scanned only if Packages/packages-lock.json present.)
+# (none — Project Zeta is auto-handled inside the prompt: scanned only if Packages/packages-lock.json present.)
 ```
 
 ## Tunable thresholds

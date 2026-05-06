@@ -47,8 +47,8 @@ Nine canonical hooks total. Each must be present as a file, byte-identical
 to canonical, executable, and registered under the expected event + matcher.
 
 The project may have **additional** hooks beyond these — that's fine and
-expected (e.g., msme-neev has `check-module-boundary.sh`). Additional hooks
-are not checked by this task.
+expected when a project has local stack-specific enforcement. Additional hooks
+are listed but not treated as canonical drift.
 
 ## Canonical Codex hook manifest
 
@@ -118,7 +118,7 @@ For each canonical skill, verify the project carries the inheritance symlink:
 
 Missing or wrong target → **critical: skill not inherited**. The skill will silently not load.
 
-Lume carve-out: Lume (Unity) is currently expected to carry the `process-gate` symlink. The canonical six gates apply regardless of stack. Stack-specific validators are project-local (`PROCESS_GATE_STACK_PROFILE="unity"` declared in `local.config.sh` is expected).
+Unity carve-out: Unity projects are expected to carry the `process-gate` symlink. The canonical six gates apply regardless of stack. Stack-specific validators are project-local (`PROCESS_GATE_STACK_PROFILE="unity"` declared in `local.config.sh` is expected).
 
 ### 7. Skill symlink (Codex parity)
 
@@ -193,7 +193,7 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
 
 | Project | Local-only hooks |
 |---|---|
-| neev | check-module-boundary.sh |
+| <project> | <local-hook>.sh |
 | ... | ... |
 
 ## Skill symlink status

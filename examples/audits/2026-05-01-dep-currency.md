@@ -12,7 +12,7 @@ Single **info** finding emitted: `dep-currency requires host execution; sandbox 
 Per `scheduled-tasks/dep-currency/targets.md` ("Runner requirement"), this task must run on the user's macOS host. The trigger condition was met:
 
 1. `uname` is `Linux` (not `Darwin`) — running in the default linux-arm64 scheduled-task sandbox.
-2. Registered project paths (`/personal/project-a`, `/personal/project-b`, `/personal/project-c`, `/personal/project-d`, `/personal/project-e`) are unreachable from this sandbox — only `se-core` is mounted.
+2. Registered project paths (`__PROJECTS_ROOT__/project-a`, `__PROJECTS_ROOT__/project-b`, `__PROJECTS_ROOT__/project-c`, `__PROJECTS_ROOT__/project-d`, `__PROJECTS_ROOT__/project-e`) are unreachable from this sandbox — only `se-core` is mounted.
 
 Both conditions matching = emit one info finding and exit, without attempting per-project outdated scans. This matches the `dep-vulnerabilities` / `test-health` pattern.
 
@@ -27,11 +27,11 @@ Resolved from `registry.md` minus `blacklist.md` and the per-task skip list in `
 
 | Project | Path | Class |
 |---|---|---|
-| project-a | `/personal/project-a` | monorepo SaaS |
-| project-b | `/personal/project-b` | single Next.js app |
-| project-c | `/personal/project-c` | portfolio site |
-| project-d | `/personal/project-d` | app |
-| project-e | `/personal/project-e` | app |
+| project-a | `__PROJECTS_ROOT__/project-a` | monorepo SaaS |
+| project-b | `__PROJECTS_ROOT__/project-b` | single Next.js app |
+| project-c | `__PROJECTS_ROOT__/project-c` | portfolio site |
+| project-d | `__PROJECTS_ROOT__/project-d` | app |
+| project-e | `__PROJECTS_ROOT__/project-e` | app |
 
 Skipped per `targets.md`:
 

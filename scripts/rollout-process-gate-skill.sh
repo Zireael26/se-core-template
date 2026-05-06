@@ -62,38 +62,20 @@ done
 REGISTRY="$SE_CORE_ROOT/registry.md"
 BLACKLIST="$SE_CORE_ROOT/blacklist.md"
 
-read_registry() {
-  awk '
-    /^## Active projects/ { in_table=1; next }
-    /^---$/ && in_table { in_table=0 }
-    in_table && /^\| [a-zA-Z0-9._-]+ \|/ {
-      name=$0; gsub(/^\| /, "", name); gsub(/ \|.*$/, "", name)
-      if (name == "Project" || name ~ /^-+$/) next
-      print name
-    }
-  ' "$REGISTRY"
-}
-read_blacklist() {
-  [ -f "$BLACKLIST" ] || return 0
-  awk '
-    /^## (Blacklisted|Currently exempt|Active blacklist)/ { in_table=1; next }
-    /^---$/ && in_table { in_table=0 }
-    in_table && /^\| [a-zA-Z0-9._-]+ \|/ {
-      name=$0; gsub(/^\| /, "", name); gsub(/ \|.*$/, "", name)
-      if (name == "Project" || name ~ /^-+$/) next
-      print name
-    }
-  ' "$BLACKLIST"
-}
-
 REGISTRY_NAMES=()
-while IFS= read -r line; do [ -n "$line" ] && REGISTRY_NAMES+=("$line"); done < <(read_registry)
+REGISTRY_PATHS=()
+while IFS=$'\t' read -r name path; do
+  [ -n "$name" ] || continue
+  REGISTRY_NAMES+=("$name")
+  REGISTRY_PATHS+=("$(pg_resolve_project_path "$name" "$path")")
+done < <(pg_registry_rows "$REGISTRY")
+
 BLACKLIST_NAMES=()
-while IFS= read -r line; do [ -n "$line" ] && BLACKLIST_NAMES+=("$line"); done < <(read_blacklist)
+while IFS= read -r line; do [ -n "$line" ] && BLACKLIST_NAMES+=("$line"); done < <(pg_blacklist_names "$BLACKLIST")
 
 is_blacklisted() {
   local n="$1" b
-  [ "${#BLACKLIST_NAMES[@]:-0}" -eq 0 ] && return 1
+  [ "${#BLACKLIST_NAMES[@]}" -eq 0 ] && return 1
   for b in "${BLACKLIST_NAMES[@]}"; do [ "$b" = "$n" ] && return 0; done
   return 1
 }
@@ -217,7 +199,7 @@ install_skill_symlink() {
 
 rollout_one() {
   local name="$1"
-  local p="$PROJECTS_ROOT/$name"
+  local p="$2"
   if [ ! -e "$p/.git" ]; then
     echo "skip (not a git repo on disk): $name → $p"
     return
@@ -254,23 +236,30 @@ rollout_one() {
 }
 
 # Filter targets
-TARGETS=()
+TARGET_NAMES=()
+TARGET_PATHS=()
 if [ -n "$ONLY_PROJECT" ]; then
-  for n in "${REGISTRY_NAMES[@]}"; do
-    [ "$n" = "$ONLY_PROJECT" ] && TARGETS+=("$n")
+  for i in "${!REGISTRY_NAMES[@]}"; do
+    n="${REGISTRY_NAMES[$i]}"
+    if [ "$n" = "$ONLY_PROJECT" ]; then
+      TARGET_NAMES+=("$n")
+      TARGET_PATHS+=("${REGISTRY_PATHS[$i]}")
+    fi
   done
-  if [ "${#TARGETS[@]}" -eq 0 ]; then
+  if [ "${#TARGET_NAMES[@]}" -eq 0 ]; then
     echo "project not in registry: $ONLY_PROJECT" >&2
     exit 1
   fi
 else
-  for n in "${REGISTRY_NAMES[@]}"; do
+  for i in "${!REGISTRY_NAMES[@]}"; do
+    n="${REGISTRY_NAMES[$i]}"
     if is_blacklisted "$n"; then echo "skip (blacklisted): $n"; continue; fi
-    TARGETS+=("$n")
+    TARGET_NAMES+=("$n")
+    TARGET_PATHS+=("${REGISTRY_PATHS[$i]}")
   done
 fi
 
-echo "Targets: ${TARGETS[*]}"
+echo "Targets: ${TARGET_NAMES[*]}"
 $DRY_RUN && echo "(dry-run mode — no writes)"
 
 if ! $ASSUME_YES && ! $DRY_RUN; then
@@ -279,8 +268,8 @@ if ! $ASSUME_YES && ! $DRY_RUN; then
   [ "$ans" = "y" ] || [ "$ans" = "Y" ] || { echo "aborted"; exit 0; }
 fi
 
-for n in "${TARGETS[@]}"; do
-  rollout_one "$n"
+for i in "${!TARGET_NAMES[@]}"; do
+  rollout_one "${TARGET_NAMES[$i]}" "${TARGET_PATHS[$i]}"
 done
 
 echo "== done =="
@@ -288,6 +277,6 @@ echo
 echo "Per-project next steps:"
 echo "  1. cd <project>"
 echo "  2. review .claude/skills/process-gate-local/local.config.sh and, if Codex-enabled, .agents/skills/process-gate-local/local.config.sh"
-echo "  3. for projects with backed-up content: review .claude/skills/process-gate.local-backup-$DATE_TAG/"
+echo "  3. for projects with backed-up content: review process-gate.local-backup-$DATE_TAG under .claude/skills/ or .agents/skills/"
 echo "     and migrate any keepers into process-gate-local/ as scripts or reference docs"
 echo "  4. git add .claude/skills/ .agents/ AGENTS.md && git commit -m 'chore: rollout SE Core process-gate skill'"

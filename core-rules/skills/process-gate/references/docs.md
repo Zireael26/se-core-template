@@ -32,7 +32,7 @@ If `CHANGELOG.md` is missing entirely: **fail** with instructions to seed it.
 
 ## ADRs
 
-Architecture Decision Records. Currently parked at parent layer (Rule of Three not met) — TGSC and Neev use different shapes. Project-local until promoted.
+Architecture Decision Records. Currently parked at parent layer (Rule of Three not met) because the reference projects use different shapes. Project-local until promoted.
 
 If the project declares ADR triggers in `local.config.sh`:
 
@@ -63,7 +63,7 @@ Ignore the warning if the situation truly didn't merit a gotcha. Otherwise add t
 
 Changes to the *parent* `engineering-process.md` happen in `se-core/`, not in projects. Out of scope for project-level process-gate.
 
-Changes to *project-local* engineering-process docs (e.g., TGSC's `docs/EPM.md`) are project-specific. If declared:
+Changes to *project-local* engineering-process docs are project-specific. If declared:
 
 ```bash
 PROCESS_GATE_PROJECT_EPM="docs/EPM.md"

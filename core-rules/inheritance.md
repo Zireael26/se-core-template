@@ -1,8 +1,8 @@
 # Load-bearing inheritance mechanism
 
-Claude Code does **not** cascade `CLAUDE.md` up the directory tree — a child session loads the nearest `CLAUDE.md` and nothing above it unless the child explicitly names a parent. There are two documented mechanisms for explicit inheritance, and they behave very differently.
+Claude Code and Codex both need explicit project-local entrypoints. SE Core keeps one canonical rule source (`core-rules/CLAUDE.md`) and exposes it through the file layout each harness understands.
 
-## Primary — `.claude/rules/` symlink (REQUIRED for every registered project)
+## Claude Code — `.claude/rules/` symlink (REQUIRED)
 
 Each project under `registry.md` MUST carry a symlink at:
 
@@ -11,6 +11,21 @@ Each project under `registry.md` MUST carry a symlink at:
 Claude Code loads every file under `.claude/rules/` **unconditionally** at session start — no approval dialog, no gate, no TTY dependency. This works identically in interactive and `claude -p` headless modes, which is the property that matters: every automated run (scheduled tasks, cron jobs, subagents, CI) must inherit parent rules without human interaction.
 
 Track the symlink in git so the inheritance is visible in repo state and protected from local deletion. If `.claude/` is gitignored in a project, add explicit exceptions for `.claude/rules/` and `.claude/rules/se-core.md` — otherwise the symlink exists only on one machine.
+
+## Codex — `AGENTS.md` plus `.agents/` symlinks (REQUIRED when Codex is enabled)
+
+Codex reads `AGENTS.md` as its repo-level instruction entrypoint. A Codex-enabled project MUST carry one of:
+
+    <project-root>/AGENTS.md → CLAUDE.md
+
+or a real `AGENTS.md` with equivalent project-specific instructions and a pointer to the parent rules. The symlink is preferred when the Claude Code and Codex instructions do not diverge.
+
+Codex-enabled projects also carry parallel `.agents/` symlinks:
+
+    <project-root>/.agents/rules/se-core.md   → __SE_CORE_PATH__/core-rules/CLAUDE.md
+    <project-root>/.agents/skills/<name>/     → __SE_CORE_PATH__/core-rules/skills/<name>/
+
+The `.agents/` tree is the Codex-side mirror of `.claude/`; it keeps rule and skill inheritance byte-identical across harnesses.
 
 ## Secondary — `@`-import in project `CLAUDE.md` (interactive fallback only)
 
@@ -36,6 +51,7 @@ So the `@`-import is useful only after a human has clicked "approve" at least on
 Every project in `registry.md` must:
 
 - [ ] Contain `CLAUDE.md` at the project root.
+- [ ] If Codex is enabled: contain `AGENTS.md` at the project root, usually as a symlink to `CLAUDE.md`.
 - [ ] Contain `.claude/rules/se-core.md` as a symlink to the canonical core-rules path.
 - [ ] Track `.claude/rules/se-core.md` in git (including `.gitignore` exceptions where needed).
 - [ ] Contain the `@`-import line in the project `CLAUDE.md` for interactive fallback.
@@ -58,14 +74,14 @@ Same silent-drop invariant: if the symlink target moves or breaks, the skill sim
 
 ## Multi-harness support (Claude Code + Codex)
 
-Claude Code is the primary harness. Codex is the secondary. SE Core is configured per-project via `harnesses` in `se-core.config.json` (Phase B); when `"codex"` is included, onboarding seeds both `.claude/` and `.agents/` artifact trees as parallel symlinks pointing at the same canonical sources.
+Claude Code and Codex are both first-class SE Core harnesses. SE Core is configured via `harnesses` in `se-core.config.json`; the default template enables both. Onboarding seeds both `.claude/` and `.agents/` artifact trees as parallel symlinks pointing at the same canonical sources.
 
 **Canonical file layout under `core-rules/`:**
 
 | Path | Purpose | Used by |
 |---|---|---|
-| `core-rules/CLAUDE.md` | Parent rules — single source of truth | Claude Code (`.claude/rules/se-core.md` symlink target) |
-| `core-rules/AGENTS.md` | Symlink → `CLAUDE.md` | Codex (when `<project>/AGENTS.md` symlinks here, or `.agents/rules/se-core.md` does) |
+| `core-rules/CLAUDE.md` | Parent rules — single source of truth | Claude Code and Codex inheritance symlink target |
+| `core-rules/AGENTS.md` | Symlink → `CLAUDE.md` | Codex-compatible view of the same canonical rules |
 | `core-rules/skills/<name>/` | Canonical skills | Both harnesses via parallel project symlinks |
 | `core-rules/hooks/` | Tier 1 + 2 Claude Code hooks | Claude Code |
 | `core-rules/codex/` | Codex hook manifest + scripts | Codex |
@@ -80,7 +96,7 @@ Claude Code is the primary harness. Codex is the secondary. SE Core is configure
 ├── .claude/
 │   ├── rules/se-core.md   → /…/se-core/core-rules/CLAUDE.md
 │   ├── skills/process-gate/ → /…/se-core/core-rules/skills/process-gate/
-│   ├── hooks/                                               ← Tier 1+2, Claude-only
+│   ├── hooks/                                               ← Tier 1+2 Claude Code hooks
 │   └── settings.json
 ├── .agents/
 │   ├── rules/se-core.md   → /…/se-core/core-rules/CLAUDE.md   (same target as .claude/rules/)
@@ -100,7 +116,7 @@ codex_hooks = true
 
 Tier 3 (husky / native git hooks) covers both harnesses identically.
 
-For Claude-Code-only projects (default), `.agents/` is omitted entirely.
+For Claude-Code-only projects, remove `"codex"` from `harnesses`; onboarding then omits the `.agents/` tree and root `AGENTS.md`.
 
 ## Native git hooks (Unity / non-Node projects)
 
@@ -110,4 +126,4 @@ Projects without `package.json` (Unity, C#, Rust, Go, Python-only, etc.) cannot 
 - That directory MUST contain a `pre-push` whose body includes the canonical SE Core PR-flow guard (block direct push to `main`/`master`, `SE_CORE_ALLOW_MAIN_PUSH=1` override).
 - The hooks directory and its scripts MUST be tracked in git so the enforcement is visible in repo state and survives a clone.
 
-Reference example: `lume` (Unity 3D) uses `.githooks/pre-push` with `core.hooksPath = .githooks`. The `cross-project-process-audit` rubric skips the husky-presence check when `package.json` is absent and the native-hooks fallback is in place — see `scheduled-tasks/cross-project-process-audit/prompt.md` §3.
+Reference example: `project-zeta` (Unity 3D) uses `.githooks/pre-push` with `core.hooksPath = .githooks`. The `cross-project-process-audit` rubric skips the husky-presence check when `package.json` is absent and the native-hooks fallback is in place — see `scheduled-tasks/cross-project-process-audit/prompt.md` §3.

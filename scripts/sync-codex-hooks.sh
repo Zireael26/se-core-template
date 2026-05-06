@@ -58,57 +58,22 @@ BLACKLIST="$SE_CORE_ROOT/blacklist.md"
 [ -d "$CANONICAL_HOOKS_DIR" ] || { echo "canonical Codex hooks dir missing: $CANONICAL_HOOKS_DIR" >&2; exit 1; }
 [ -f "$REGISTRY" ]            || { echo "registry.md missing: $REGISTRY" >&2; exit 1; }
 
-# Parse Active projects table from registry.md
-# Format: | name | `/personal/<dir>` | class | notes |
-# Skips the header row ("| Project |") and separator ("|---|").
-read_registry() {
-  awk '
-    /^## Active projects/ { in_table=1; next }
-    /^---$/ && in_table { in_table=0 }
-    in_table && /^\| [a-zA-Z0-9._-]+ \|/ {
-      name=$0
-      gsub(/^\| /, "", name); gsub(/ \|.*$/, "", name)
-      if (name == "Project" || name ~ /^-+$/) next
-      print name
-    }
-  ' "$REGISTRY"
-}
-
-read_blacklist_names() {
-  [ -f "$BLACKLIST" ] || return 0
-  awk '
-    /^## (Blacklisted|Currently exempt|Active blacklist)/ { in_table=1; next }
-    /^---$/ && in_table { in_table=0 }
-    in_table && /^\| [a-zA-Z0-9._-]+ \|/ {
-      name=$0
-      gsub(/^\| /, "", name); gsub(/ \|.*$/, "", name)
-      if (name == "Project" || name ~ /^-+$/) next
-      print name
-    }
-  ' "$BLACKLIST"
-}
-
-resolve_project_path() {
-  # Map a registry name to absolute path under PROJECTS_ROOT.
-  # registry uses paths like `/personal/<name>` — we strip /personal/ and
-  # join with PROJECTS_ROOT.
-  local name="$1"
-  printf "%s/%s" "$PROJECTS_ROOT" "$name"
-}
-
 REGISTRY_NAMES=()
-while IFS= read -r line; do
-  [ -n "$line" ] && REGISTRY_NAMES+=("$line")
-done < <(read_registry)
+REGISTRY_PATHS=()
+while IFS=$'\t' read -r name path; do
+  [ -n "$name" ] || continue
+  REGISTRY_NAMES+=("$name")
+  REGISTRY_PATHS+=("$(pg_resolve_project_path "$name" "$path")")
+done < <(pg_registry_rows "$REGISTRY")
 
 BLACKLIST_NAMES=()
 while IFS= read -r line; do
   [ -n "$line" ] && BLACKLIST_NAMES+=("$line")
-done < <(read_blacklist_names)
+done < <(pg_blacklist_names "$BLACKLIST")
 
 is_blacklisted() {
   local name="$1" b
-  [ "${#BLACKLIST_NAMES[@]:-0}" -eq 0 ] && return 1
+  [ "${#BLACKLIST_NAMES[@]}" -eq 0 ] && return 1
   for b in "${BLACKLIST_NAMES[@]}"; do
     [ "$b" = "$name" ] && return 0
   done
@@ -117,8 +82,7 @@ is_blacklisted() {
 
 sync_one() {
   local name="$1"
-  local proj
-  proj="$(resolve_project_path "$name")"
+  local proj="$2"
 
   if [ ! -d "$proj" ]; then
     echo "skip (not on disk): $name → $proj"
@@ -166,26 +130,33 @@ sync_one() {
 }
 
 # Filter target list
-TARGETS=()
+TARGET_NAMES=()
+TARGET_PATHS=()
 if [ -n "$ONLY_PROJECT" ]; then
-  for n in "${REGISTRY_NAMES[@]}"; do
-    [ "$n" = "$ONLY_PROJECT" ] && TARGETS+=("$n")
+  for i in "${!REGISTRY_NAMES[@]}"; do
+    n="${REGISTRY_NAMES[$i]}"
+    if [ "$n" = "$ONLY_PROJECT" ]; then
+      TARGET_NAMES+=("$n")
+      TARGET_PATHS+=("${REGISTRY_PATHS[$i]}")
+    fi
   done
-  if [ "${#TARGETS[@]}" -eq 0 ]; then
+  if [ "${#TARGET_NAMES[@]}" -eq 0 ]; then
     echo "project not in registry: $ONLY_PROJECT" >&2
     exit 1
   fi
 else
-  for n in "${REGISTRY_NAMES[@]}"; do
+  for i in "${!REGISTRY_NAMES[@]}"; do
+    n="${REGISTRY_NAMES[$i]}"
     if is_blacklisted "$n"; then
       echo "skip (blacklisted): $n"
       continue
     fi
-    TARGETS+=("$n")
+    TARGET_NAMES+=("$n")
+    TARGET_PATHS+=("${REGISTRY_PATHS[$i]}")
   done
 fi
 
-echo "Targets: ${TARGETS[*]}"
+echo "Targets: ${TARGET_NAMES[*]}"
 $DRY_RUN && echo "(dry-run mode — no writes)"
 
 if ! $ASSUME_YES && ! $DRY_RUN; then
@@ -194,8 +165,8 @@ if ! $ASSUME_YES && ! $DRY_RUN; then
   [ "$ans" = "y" ] || [ "$ans" = "Y" ] || { echo "aborted"; exit 0; }
 fi
 
-for n in "${TARGETS[@]}"; do
-  sync_one "$n"
+for i in "${!TARGET_NAMES[@]}"; do
+  sync_one "${TARGET_NAMES[$i]}" "${TARGET_PATHS[$i]}"
 done
 
 echo "== done =="
