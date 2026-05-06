@@ -148,7 +148,7 @@ For (a), ask the user to fork via GitHub UI, then guide them through `git remote
 
 ### Step 6 — (Optional) Onboard their first project
 
-Ask the user: "Do you have an existing personal project you'd like to register under SE Core right now? (Y/N)"
+Ask the user: "Do you have an existing project you'd like to register under SE Core right now? (Y/N)"
 
 If yes:
 
