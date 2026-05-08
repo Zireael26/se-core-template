@@ -67,7 +67,7 @@ stays meaningful.
 
 - **Target:** `^4`
 - **Target set:** 2026-05-01
-- **Target reasoning:** Tailwind v4 (Oxide) is the current major; v3 → v4 is non-trivial (CSS-first config via `@theme`, Lightning CSS pipeline, plugin compat). Project Beta is already on v4.
+- **Target reasoning:** Tailwind v4 (Oxide) is the current major; v3 → v4 is non-trivial (CSS-first config via `@theme`, Lightning CSS pipeline, plugin compat). TGSC is already on v4.
 - **Per-project overrides:**
   - *(none)*
 
@@ -79,11 +79,11 @@ stays meaningful.
 - **Per-project overrides:**
   - *(none)*
 
-### unity  (engine — Project Zeta only)
+### unity  (engine — Lume only)
 
 - **Target:** `6000.4 LTS` (Unity 6 LTS line)
-- **Target set:** 2026-05-01 (revised — initial seed of `2022.3 LTS` was already two LTS lines behind; Project Zeta itself is on `6000.4.4f1` at revision time)
-- **Target reasoning:** Unity 6 LTS (6000.x) is the current LTS line and Project Zeta is already on it. Tilde-style range against the major-LTS so patch bumps within `6000.4.x` don't trigger the audit; jumping to `6000.5 LTS` or beyond would. Sourced from `<project-root>/ProjectSettings/ProjectVersion.txt` `m_EditorVersion` field. Project Zeta's project root is nested at `Project ZetaApp/`; the audit auto-probes the conventional sub-paths. No programmatic upstream lookup for Unity exists; bumps here happen via human review.
+- **Target set:** 2026-05-01 (revised — initial seed of `2022.3 LTS` was already two LTS lines behind; Lume itself is on `6000.4.4f1` at revision time)
+- **Target reasoning:** Unity 6 LTS (6000.x) is the current LTS line and Lume is already on it. Tilde-style range against the major-LTS so patch bumps within `6000.4.x` don't trigger the audit; jumping to `6000.5 LTS` or beyond would. Sourced from `<project-root>/ProjectSettings/ProjectVersion.txt` `m_EditorVersion` field. Lume's project root is nested at `LumeApp/`; the audit auto-probes the conventional sub-paths. No programmatic upstream lookup for Unity exists; bumps here happen via human review.
 - **Per-project overrides:**
   - *(none)*
 

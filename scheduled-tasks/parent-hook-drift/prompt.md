@@ -1,9 +1,9 @@
 # Parent-hook drift (weekly)
 
 You are verifying that the canonical parent-layer artifacts —
-hook scripts in `__SE_CORE_PATH__/core-rules/hooks/`
-Codex hook assets in `__SE_CORE_PATH__/core-rules/codex/`
-**and** canonical skills in `__SE_CORE_PATH__/core-rules/skills/` —
+hook scripts in `__USER_HOME__/projects/se-core/core-rules/hooks/`
+Codex hook assets in `__USER_HOME__/projects/se-core/core-rules/codex/`
+**and** canonical skills in `__USER_HOME__/projects/se-core/core-rules/skills/` —
 are **byte-identical** to their deployed copies in each registered project.
 The parent layer only has teeth if projects actually inherit the current
 version — silent drift defeats the whole point.
@@ -12,18 +12,18 @@ This audit covers two artifact classes:
 
 1. **Hook drift** — files copied into `<project>/.claude/hooks/` (must be byte-identical copies of canonical).
 2. **Codex hook drift** — files copied into `<project>/.codex/` (must be byte-identical copies of canonical when Codex is enabled).
-3. **Skill drift** — symlinks at `<project>/.claude/skills/<name>/` (and `<project>/.agents/skills/<name>/` if Codex-enabled) MUST resolve to the canonical directory under `__SE_CORE_PATH__/core-rules/skills/<name>/`. Symlink target verification, not byte-content (the symlink IS the inheritance).
+3. **Skill drift** — symlinks at `<project>/.claude/skills/<name>/` (and `<project>/.agents/skills/<name>/` if Codex-enabled) MUST resolve to the canonical directory under `__USER_HOME__/projects/se-core/core-rules/skills/<name>/`. Symlink target verification, not byte-content (the symlink IS the inheritance).
 
 ## Inputs
 
 1. Canonical hook source:
-   `__SE_CORE_PATH__/core-rules/hooks/*.sh`
+   `__USER_HOME__/projects/se-core/core-rules/hooks/*.sh`
 2. Canonical Codex hook source:
-   `__SE_CORE_PATH__/core-rules/codex/hooks.json` and `__SE_CORE_PATH__/core-rules/codex/hooks/*.sh`
+   `__USER_HOME__/projects/se-core/core-rules/codex/hooks.json` and `__USER_HOME__/projects/se-core/core-rules/codex/hooks/*.sh`
 3. Canonical skills source:
-   `__SE_CORE_PATH__/core-rules/skills/*/`
-4. Read `__SE_CORE_PATH__/registry.md`
-5. Read `__SE_CORE_PATH__/blacklist.md`
+   `__USER_HOME__/projects/se-core/core-rules/skills/*/`
+4. Read `__USER_HOME__/projects/se-core/registry.md`
+5. Read `__USER_HOME__/projects/se-core/blacklist.md`
 6. Target set = `registry \ blacklist`.
 
 ## Canonical hook manifest
@@ -47,15 +47,15 @@ Nine canonical hooks total. Each must be present as a file, byte-identical
 to canonical, executable, and registered under the expected event + matcher.
 
 The project may have **additional** hooks beyond these — that's fine and
-expected when a project has local stack-specific enforcement. Additional hooks
-are listed but not treated as canonical drift.
+expected (e.g., msme-neev has `check-module-boundary.sh`). Additional hooks
+are not checked by this task.
 
 ## Canonical Codex hook manifest
 
 When parent `se-core.config.json` includes `"codex"` in `harnesses`, each project must carry:
 
-- `<project>/.codex/hooks.json`, byte-identical to `__SE_CORE_PATH__/core-rules/codex/hooks.json`
-- `<project>/.codex/hooks/*.sh`, byte-identical to `__SE_CORE_PATH__/core-rules/codex/hooks/*.sh`
+- `<project>/.codex/hooks.json`, byte-identical to `__USER_HOME__/projects/se-core/core-rules/codex/hooks.json`
+- `<project>/.codex/hooks/*.sh`, byte-identical to `__USER_HOME__/projects/se-core/core-rules/codex/hooks/*.sh`
 - all `.sh` files executable
 
 The manifest must use environment-relative commands such as `${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}/.codex/hooks/...`; hardcoded project paths are drift.
@@ -114,11 +114,11 @@ Canonical skills currently shipped: `process-gate`.
 For each canonical skill, verify the project carries the inheritance symlink:
 
 - `<project>/.claude/skills/<name>/` exists AND is a symlink
-- `readlink <project>/.claude/skills/<name>/` resolves to `__SE_CORE_PATH__/core-rules/skills/<name>/` (or the equivalent canonical path)
+- `readlink <project>/.claude/skills/<name>/` resolves to `__USER_HOME__/projects/se-core/core-rules/skills/<name>/` (or the equivalent canonical path)
 
 Missing or wrong target → **critical: skill not inherited**. The skill will silently not load.
 
-Unity carve-out: Unity projects are expected to carry the `process-gate` symlink. The canonical six gates apply regardless of stack. Stack-specific validators are project-local (`PROCESS_GATE_STACK_PROFILE="unity"` declared in `local.config.sh` is expected).
+Lume carve-out: Lume (Unity) is currently expected to carry the `process-gate` symlink. The canonical six gates apply regardless of stack. Stack-specific validators are project-local (`PROCESS_GATE_STACK_PROFILE="unity"` declared in `local.config.sh` is expected).
 
 ### 7. Skill symlink (Codex parity)
 
@@ -142,7 +142,7 @@ For each project, the project-local `<project>/.claude/skills/process-gate-local
 
 ## Output
 
-Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
+Write to `__USER_HOME__/projects/se-core/audits/YYYY-MM-DD-parent-hook-drift.md`:
 
 ```
 # Parent-hook drift — <date>
@@ -193,7 +193,7 @@ Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-parent-hook-drift.md`:
 
 | Project | Local-only hooks |
 |---|---|
-| <project> | <local-hook>.sh |
+| neev | check-module-boundary.sh |
 | ... | ... |
 
 ## Skill symlink status

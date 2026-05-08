@@ -1,10 +1,10 @@
 # SE Core — engineering process manual
 
 **Owner:** __MAINTAINER_NAME__ (solo maintainer)
-**Status:** Authoritative. Updates only via PR against the configured SE Core repository.
+**Status:** Authoritative. Updates only via PR against `~/projects/se-core/`.
 **Last revised:** 2026-05-02
 
-This is the single human-readable source of truth for how engineering is done under the Software Engineering Core regime. Everything elaborated here is grounded in the machinery in this repository — specs in `core-rules/`, canonical hooks in `core-rules/hooks/`, the project list in `registry.md`, and the scheduled audits in `scheduled-tasks/`. This manual narrates and connects them; it does not duplicate them. When a section points at a sibling file, that file is the deep dive.
+This is the single human-readable source of truth for how engineering is done under the Software Engineering Core regime. Everything elaborated here is grounded in the machinery that already exists in `~/projects/se-core/` — specs in `core-rules/`, canonical hooks in `core-rules/hooks/`, the project list in `registry.md`, and the scheduled audits in `scheduled-tasks/`. This manual narrates and connects them; it does not duplicate them. When a section points at a sibling file, that file is the deep dive.
 
 ---
 
@@ -32,11 +32,11 @@ This is the single human-readable source of truth for how engineering is done un
 
 ### What SE Core is
 
-Software Engineering Core (SE Core) is a shared engineering-process regime that a set of opt-in projects inherit from. It lives in a configured control-plane repository and manifests in each registered project as:
+Software Engineering Core (SE Core) is a shared engineering-process regime that a set of opt-in personal projects inherit from. It lives in `~/projects/se-core/` and manifests in each registered project as:
 
 - A `.claude/rules/se-core.md` symlink for Claude Code and `AGENTS.md` / `.agents/rules/se-core.md` for Codex, all pointing at the canonical parent rules.
 - Canonical hooks deployed under `.claude/hooks/` for Claude Code and `.codex/` for Codex that enforce the rules mechanically at tool-use time.
-- Weekly and monthly audits that scan every registered project for drift and write reports to `audits/`.
+- Weekly and monthly audits that scan every registered project for drift and write reports to `~/projects/se-core/audits/`.
 
 The goal: shared high standards across projects without hand-enforcing them per session.
 
@@ -46,13 +46,13 @@ The specs (`core-rules/CLAUDE.md`, `hooks.md`, `inheritance.md`) are terse and L
 
 ### Audience
 
-- **The maintainer** — when you need to remember what the policy is, when you need to decide whether a pattern should be lifted into the parent, or when you're about to change something about the process.
-- **Your LLM collaborators** — Claude Code, Codex, headless Claude runs, and similar agent sessions — load `core-rules/CLAUDE.md` through the inheritance mechanism. This manual is a companion for human-readable context that can be referenced on demand.
+- **You (Abhishek)** — when you need to remember what the policy is, when you need to decide whether a pattern should be lifted into the parent, or when you're about to change something about the process.
+- **Your LLM collaborators** — Claude Code, Codex, and headless audit runners — already load the parent rules via the inheritance mechanism. This manual is a companion for human-readable context that can be referenced on demand.
 - **Future contributors** — if SE Core ever has other humans working inside it, this is the doc that onboards them.
 
 ### Scope
 
-SE Core covers engineering process for projects explicitly listed in `registry.md`. Work projects, client engagements, and throwaway experiments can stay out of scope by leaving them unregistered or adding them to `blacklist.md`. If a project opts into SE Core it commits to the configured harness stack; partial adoption is not supported.
+SE Core covers engineering process for *personal* projects under `~/projects/personal/`. Work projects, client engagements, and throwaway experiments are out of scope — this regime is opinionated, prescriptive, and designed around solo-dev-with-high-standards dynamics. If a project opts into SE Core it commits to the whole stack; partial adoption is not supported.
 
 ---
 
@@ -74,7 +74,7 @@ Five principles the manual comes back to:
 
 ## 3. The control plane
 
-Everything that defines and evolves SE Core lives in this repository:
+Everything that defines and evolves SE Core lives in `~/projects/se-core/`:
 
 ```
 se-core/
@@ -112,10 +112,10 @@ Single file capturing the customizations of THIS clone of se-core. Bootstrapped 
 {
   "se_core_root":   "/abs/path/to/se-core",
   "projects_root":  "/abs/path/to/projects/personal",
-  "user_home":      "/home/<you>",
+  "user_home":      "/Users/<you>",
   "maintainer_name":"<your name>",
   "github_user":    "<github-username>",
-  "harnesses":      ["claude", "codex"],
+  "harnesses":      ["claude"],         // or ["claude", "codex"]
   "template": {
     "remote": "git@github.com:<you>/se-core-template.git",
     "branch": "main",
@@ -131,7 +131,7 @@ Cross-machine portability is achieved by:
 
 1. **The template repo** (`se-core-template`) — placeholders + `AGENT_SETUP.md` walking an LLM through bootstrap.
 2. **`sync-to-template.sh`** — exports current canonical content from this live repo back to the template, redacting user-specific values to placeholders. The friend pulls template updates and re-applies to their own clone.
-3. **Audit prompts retain configured paths** — bootstrap-time substitution, not implicit machine assumptions. Headless-safe by construction; each clone has its own paths after bootstrap.
+3. **Audit prompts retain absolute paths** — bootstrap-time sed-substitution, not runtime resolution. Headless-safe by construction; each customer's clone has their own absolute paths after bootstrap.
 
 ### 3.2 Scripts
 
@@ -172,11 +172,9 @@ A project is active under SE Core if and only if it appears in `registry.md` and
 
 Claude Code does **not** cascade `CLAUDE.md` up the directory tree. Inheritance is explicit, via two mechanisms with different trust profiles:
 
-**Claude Code — `.claude/rules/se-core.md` symlink.** Files under `.claude/rules/` load unconditionally at session start, in interactive *and* headless modes. This is the Claude Code inheritance path that's load-bearing. Required for every registered project. Track the symlink in git (add `.gitignore` exceptions if `.claude/` is broadly ignored).
+**Primary — `.claude/rules/se-core.md` symlink.** Files under `.claude/rules/` load unconditionally at session start, in interactive *and* headless modes. This is the only inheritance path that's load-bearing. Required for every registered project. Track the symlink in git (add `.gitignore` exceptions if `.claude/` is broadly ignored).
 
-**Codex — `AGENTS.md` and `.agents/` symlinks.** Codex reads project-level `AGENTS.md`; when there is no Codex-specific divergence, make it a symlink to `CLAUDE.md`. Codex-enabled projects also carry `.agents/rules/se-core.md` and `.agents/skills/process-gate/` symlinks pointing at the same canonical sources as the `.claude/` tree.
-
-**Secondary — `@`-import in project `CLAUDE.md`.** `@__SE_CORE_PATH__/core-rules/CLAUDE.md` on line 2 of each project's `CLAUDE.md`. Belt-and-braces redundancy in interactive mode. Trust-prompt-gated and silently drops in headless mode, so it must never be treated as primary.
+**Secondary — `@`-import in project `CLAUDE.md`.** `@__USER_HOME__/projects/se-core/core-rules/CLAUDE.md` on line 2 of each project's `CLAUDE.md`. Belt-and-braces redundancy in interactive mode. Trust-prompt-gated and silently drops in headless mode, so it must never be treated as primary.
 
 If either mechanism breaks, Claude Code drops the instruction silently — no error, no warning. The `parent-hook-drift` audit catches drift; the `cross-project-process-audit` catches missing symlinks. See `core-rules/inheritance.md` for silent-drop invariants and the registered-project checklist.
 
@@ -240,7 +238,7 @@ The directory itself is symlinked, so canonical updates appear automatically. Pr
 
 **Stack profiles.** The canonical six gates apply to every project. Stack-specific validators (design tokens, a11y, module boundaries, asset checks) attach via `PROCESS_GATE_STACK_PROFILE` and `PROCESS_GATE_STACK_VALIDATORS` in `local.config.sh`. See `core-rules/skills/process-gate/references/stack-profiles.md`. Profiles waiting for a third witness queue in `core-rules/deferred.md`.
 
-**Unity carve-out.** Unity/native game projects declare `PROCESS_GATE_STACK_PROFILE="unity"` with project-local validators only. The canonical six gates still apply. The carve-out is documented in `registry.md` and the extended `parent-hook-drift` audit treats it as expected, not drift.
+**Lume carve-out.** Lume (Unity, n=1 native-stack project) declares `PROCESS_GATE_STACK_PROFILE="unity"` with project-local validators only. The canonical six gates still apply. The carve-out is documented in `registry.md` and the extended `parent-hook-drift` audit treats it as expected, not drift.
 
 ### 5.3 Project overrides
 
@@ -261,17 +259,17 @@ Overrides live in each project's `.claude/hooks/config.sh` and/or `.codex/hooks/
 
 ### 5.5 Harness coverage matrix
 
-Claude Code and Codex are first-class harnesses. Different layers cover each one according to what the harness exposes:
+Claude Code is the primary harness. Codex is the secondary. Different layers cover different harnesses:
 
 | Layer | Claude Code | Codex | Notes |
 |---|---|---|---|
-| Parent rules doc | `CLAUDE.md` (via `.claude/rules/se-core.md` symlink) | `AGENTS.md` plus `.agents/rules/se-core.md` symlink | Single canonical source of truth in `core-rules/CLAUDE.md`. |
+| Parent rules doc | `CLAUDE.md` (via `.claude/rules/se-core.md` symlink) | `AGENTS.md` (symlink → `CLAUDE.md`, or `.agents/rules/se-core.md` symlink) | Single canonical source of truth in `core-rules/CLAUDE.md`. |
 | Skills (`process-gate`, future) | `.claude/skills/<name>/` symlink | `.agents/skills/<name>/` symlink | Same canonical target; byte-identical across harnesses. |
 | Tier 1 + 2 hooks | `.claude/settings.json` hook entries | `.codex/hooks.json` hook entries | Separate canonical envelopes; same policy intent. |
 | Tier 3 git hooks (husky / native) | runs in both | runs in both | Harness-agnostic. |
-| Scheduled audits | `mcp__scheduled-tasks__*` MCP or cron/headless runner | Same markdown prompts, invoked by the user's scheduler of choice | Audit prompts are plain markdown and do not depend on a day-to-day coding harness. |
+| Scheduled audits | `mcp__scheduled-tasks__*` MCP | **N/A** at MCP level | Audit prompts are plain markdown; can be invoked from cron via `claude -p` regardless of which harness the user develops in. |
 
-The template default is `harnesses: ["claude", "codex"]`. Remove a harness from `se-core.config.json` only when you intentionally do not use it.
+Projects opt into Codex by setting `harnesses: ["claude", "codex"]` in `se-core.config.json` (see §3 control plane). The public template defaults to `["claude"]`; this live control plane runs both.
 
 ---
 
@@ -289,7 +287,7 @@ No `develop`. No `release/*`. No `hotfix/*`. If you need a pre-production branch
 
 Allowed types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `perf`, `build`, `ci`, `revert`.
 
-**Scopes are optional and opt-in per project.** Projects that define a scope allowlist enforce that allowlist. Projects that don't, accept unscoped commits. Never invent a scope ad-hoc.
+**Scopes are optional and opt-in per project.** Projects that define a scope allowlist (e.g., Neev's 16 package names) enforce that allowlist. Projects that don't, accept unscoped commits. Never invent a scope ad-hoc.
 
 Examples:
 ```
@@ -305,21 +303,21 @@ Commit bodies are optional. When present, use them for *why*, not for *what* (th
 **Every change to `main` goes through a PR.** No exceptions under normal conditions. Direct push to `main` is blocked at three layers:
 
 1. Local `pre-push` hook (husky) — refuses direct push to `main`/`master`. Override: `SE_CORE_ALLOW_MAIN_PUSH=1 git push` (use almost never, document every use in the project's `gotchas.md` or commit trailer).
-2. GitHub branch protection — require PR, require passing status checks, require linear history / squash-merge.
+2. GitHub branch protection — require PR, require passing status checks, **squash-merge disabled in repo settings** so merge commits are the only path that lands on `main` (preserves full PR history). Do not enable "Require linear history" — it forbids merge commits.
 3. Convention — you know better.
 
 Review model for sole-maintainer projects: **self-review discipline + CI gates**. GitHub blocks self-approval so "reviewed by = merged by" is structurally prevented, but the review happens:
 - When you open the PR, write the description as if explaining to a stranger. If it's hard to write, the change is too big or too unclear — split it.
 - Wait at least one session (≥ 30 minutes; overnight is better) before merging. Re-read the diff with fresh eyes. Non-trivial changes benefit from a code-review subagent pass via the Agent tool.
 - CI must be green. Status checks required at the branch protection level.
-- Merge style: **squash and merge** by default, preserving the PR title as the merge commit message. Rebase-merge for PRs that legitimately contain multiple semantically distinct commits.
+- Merge style: **merge commit** by default — preserve the full per-commit history of every PR (including agent attribution and intermediate review state). Squash-merge is forbidden; rebase-merge only when the branch's commit history is intentionally clean and linear and explicitly approved for that PR. (See `core-rules/skills/process-gate/references/pr-hygiene.md` and `core-rules/hooks.md` for the canonical statements; the `bypass-tripwire` audit treats the `(#NN)` squash marker as a direct-push detection signal, which assumes merge commits are the norm.)
 
 ### 6.4 Branch protection
 
 Every SE Core project must have branch protection on `main`:
 - Require pull requests before merging.
 - Require status checks to pass (CI: install → lint → typecheck → unit tests → build).
-- Require linear history (enforces squash/rebase merge).
+- Disable squash-merge in repo settings; allow merge-commit (default) and rebase-merge only. Do **not** enable the "Require linear history" branch-protection toggle — it forbids merge commits, conflicting with the canonical merge-commit policy. Effective linearity is achieved by rebasing feature branches onto current `main` before merge so the merge commit is fast-forwardable.
 - Do not allow force pushes to `main`.
 - Do not allow deletions.
 
@@ -327,8 +325,8 @@ Review-count rules are N/A for sole-maintainer orgs (GitHub's self-approval bloc
 
 ### 6.5 History hygiene
 
-- **Squash-merge by default** — one commit per PR on `main`. The PR title is the commit message.
-- **No merge commits on `main`** — linear history only. Rebase feature branches before opening PR if they're behind.
+- **Merge-commit by default** — one merge commit per PR on `main`, preserving the branch's per-commit history. Squash-merge is forbidden (drops agent attribution, intermediate review state, and bisect resolution). Rebase-merge is allowed only for branches whose commit history is intentionally clean and linear, with explicit approval per PR.
+- **Linear history on `main`** (by convention, not by GitHub toggle) — rebase feature branches onto current `main` before merge so the merge commit is fast-forwardable. The "Require linear history" branch-protection setting is **disabled** because it forbids merge commits; the discipline is enforced at PR time by the gate, not by GitHub.
 - **Don't amend published commits** without force-with-lease on the feature branch. Never force-push `main` under any condition (blocked anyway).
 - **`git revert` over `git reset`** for rolling back merged work. Preserves history.
 
@@ -406,9 +404,9 @@ Each registered project has a `CLAUDE.md` at its root. Structure:
 ```markdown
 # <project-name>
 
-@__SE_CORE_PATH__/core-rules/CLAUDE.md
+@__USER_HOME__/projects/se-core/core-rules/CLAUDE.md
 
-> Engineering process manual: `__SE_CORE_PATH__/engineering-process.md`
+> Engineering process manual: `~/projects/se-core/engineering-process.md`
 
 <1–3 sentences: what is this project, who uses it, what's its current phase>
 
@@ -419,7 +417,7 @@ Each registered project has a `CLAUDE.md` at its root. Structure:
 <high-level shape: monorepo packages, services, main modules>
 
 ## Project-specific rules
-<anything that doesn't belong in the parent — e.g., project-specific module-boundary rules>
+<anything that doesn't belong in the parent — e.g., "never import @neev/orders from @neev/inventory">
 
 ## Gotchas
 <pointer to gotchas.md + any highlights worth surfacing>
@@ -473,15 +471,15 @@ Hook-managed (`save-context-log` writes on `PreCompact`, `post-compact-context` 
 
 ### 9.5 ADRs (parked)
 
-Architecture Decision Records are currently in `deferred.md` awaiting a third project to adopt. One reference project uses `docs/adr/NNNN-<slug>.md` with context / decision / consequences / status; another uses tech-spec docs. Neither is the parent rule yet.
+Architecture Decision Records are currently in `deferred.md` awaiting a third project to adopt. TGSC uses `docs/adr/NNNN-<slug>.md` with context / decision / consequences / status. Neev uses tech-spec docs. Neither is the parent rule yet.
 
-**Interim guidance:** if you write an ADR, use the numbered `docs/adr/NNNN-<slug>.md` shape. When a third project picks the same shape, promote it.
+**Interim guidance:** if you write an ADR, use TGSC's shape. When a third project picks the same shape, promote it.
 
 ---
 
 ## 10. Onboarding a new project — full playbook
 
-This is the canonical sequence. Prefer `scripts/onboard-project.sh <project-path>` for existing projects; use the manual version when scaffolding a brand-new repo.
+This is the canonical sequence. Run it manually, or point `scripts/onboard-project.sh` at it once the script exists (not yet).
 
 ### 10.1 Pre-flight questions (answer before anything)
 
@@ -495,7 +493,7 @@ This is the canonical sequence. Prefer `scripts/onboard-project.sh <project-path
 
 ```bash
 # 1. Create project directory
-cd __PROJECTS_ROOT__
+cd ~/projects/personal
 mkdir <name>
 cd <name>
 
@@ -506,27 +504,27 @@ git init -b main
 mkdir -p .claude/rules .claude/hooks
 
 # 4. Symlink parent rules (PRIMARY inheritance — required)
-ln -s __SE_CORE_PATH__/core-rules/CLAUDE.md \
+ln -s __USER_HOME__/projects/se-core/core-rules/CLAUDE.md \
       .claude/rules/se-core.md
 
 # 5. Copy canonical hooks
-cp __SE_CORE_PATH__/core-rules/hooks/*.sh .claude/hooks/
+cp __USER_HOME__/projects/se-core/core-rules/hooks/*.sh .claude/hooks/
 chmod +x .claude/hooks/*.sh
 
 # 5b. Symlink canonical skills (process-gate)
 mkdir -p .claude/skills
-ln -s __SE_CORE_PATH__/core-rules/skills/process-gate \
+ln -s __USER_HOME__/projects/se-core/core-rules/skills/process-gate \
       .claude/skills/process-gate
 
 # 5c. (Codex-enabled projects only) seed .agents and .codex trees
 # If `harnesses` in se-core.config.json includes "codex":
 #   mkdir -p .agents/rules .agents/skills .codex/hooks
-#   ln -s __SE_CORE_PATH__/core-rules/CLAUDE.md \
+#   ln -s __USER_HOME__/projects/se-core/core-rules/CLAUDE.md \
 #         .agents/rules/se-core.md
-#   ln -s __SE_CORE_PATH__/core-rules/skills/process-gate \
+#   ln -s __USER_HOME__/projects/se-core/core-rules/skills/process-gate \
 #         .agents/skills/process-gate
-#   cp __SE_CORE_PATH__/core-rules/codex/hooks.json .codex/hooks.json
-#   cp __SE_CORE_PATH__/core-rules/codex/hooks/*.sh .codex/hooks/
+#   cp __USER_HOME__/projects/se-core/core-rules/codex/hooks.json .codex/hooks.json
+#   cp __USER_HOME__/projects/se-core/core-rules/codex/hooks/*.sh .codex/hooks/
 #   chmod +x .codex/hooks/*.sh
 #   # AGENTS.md at project root: either content + @-import OR symlink → CLAUDE.md
 #   ln -s CLAUDE.md AGENTS.md   # if no Codex-specific divergence is needed
@@ -538,7 +536,7 @@ ln -s __SE_CORE_PATH__/core-rules/skills/process-gate \
 cat > CLAUDE.md <<'EOF'
 # <name>
 
-@__SE_CORE_PATH__/core-rules/CLAUDE.md
+@__USER_HOME__/projects/se-core/core-rules/CLAUDE.md
 
 <1-3 sentence project overview>
 
@@ -547,7 +545,7 @@ cat > CLAUDE.md <<'EOF'
 EOF
 
 # 8. Write gotchas.md (template in se-core/core-rules/templates/gotchas.md)
-cp __SE_CORE_PATH__/core-rules/templates/gotchas.md .
+cp __USER_HOME__/projects/se-core/core-rules/templates/gotchas.md .
 
 # 9. .gitignore (stack-appropriate) + .claude/ exceptions
 cat >> .gitignore <<'EOF'
@@ -566,8 +564,7 @@ git add -f .claude/rules/se-core.md   # force-add the tracked symlink if needed
 git commit -m "chore: initial scaffold with SE Core inheritance"
 
 # 12. Add to registry.md
-# Edit registry.md, add a new row under "Active projects".
-# Path may be absolute, "~/...", relative to projects_root, or "__PROJECTS_ROOT__/name".
+# Edit ~/projects/se-core/registry.md, add a new row under "Active projects"
 # Commit that change in se-core with "chore: register <name>"
 
 # 13. Create GitHub repo (via gh CLI or UI), add remote
@@ -580,14 +577,14 @@ git push -u origin main
 
 ### 10.3 First-commit checklist (verify before you push)
 
-- [ ] Read `engineering-process.md` end-to-end. Everything below this line assumes you have.
+- [ ] Read `~/projects/se-core/engineering-process.md` end-to-end. Everything below this line assumes you have.
 - [ ] `ls -la .claude/rules/se-core.md` — symlink exists, points at canonical path.
-- [ ] `readlink .claude/rules/se-core.md` — target is `__SE_CORE_PATH__/core-rules/CLAUDE.md`.
+- [ ] `readlink .claude/rules/se-core.md` — target is `__USER_HOME__/projects/se-core/core-rules/CLAUDE.md`.
 - [ ] `ls .claude/hooks/` — all nine canonical `.sh` files present and executable.
 - [ ] `ls -la .claude/skills/process-gate` — symlink exists, points at canonical `core-rules/skills/process-gate`.
-- [ ] `readlink .claude/skills/process-gate` — target is `__SE_CORE_PATH__/core-rules/skills/process-gate`.
+- [ ] `readlink .claude/skills/process-gate` — target is `__USER_HOME__/projects/se-core/core-rules/skills/process-gate`.
 - [ ] `grep -q '$CLAUDE_PROJECT_DIR' .claude/settings.json` — no hardcoded project paths.
-- [ ] `CLAUDE.md` starts with `@__SE_CORE_PATH__/core-rules/CLAUDE.md` on line 2.
+- [ ] `CLAUDE.md` starts with `@__USER_HOME__/projects/se-core/core-rules/CLAUDE.md` on line 2.
 - [ ] `gotchas.md` exists at project root.
 - [ ] `.gitignore` has `context-log.md` and `.claude/settings.local.json`.
 - [ ] If Codex-enabled: `AGENTS.md`, `.agents/rules/se-core.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh` are present.
@@ -615,7 +612,7 @@ Wait for the next scheduled run of `parent-hook-drift` (Sunday 21:00) and `regis
 | `gotchas-rollup` | Monthly (1st 09:00) | Clusters each project's gotchas, applies Rule of Three for promotion. |
 | `audit-report-rollup` | Monthly (1st 10:00) | Trend analysis across the six audits above. |
 
-All audits write to `audits/YYYY-MM-DD-<name>.md` under the configured SE Core root. Prompt sources live in `scheduled-tasks/<name>/prompt.md`; runtime prompts should read those files at run time so version-control edits do not require task recreation.
+All audits write to `~/projects/se-core/audits/YYYY-MM-DD-<name>.md`. All are headless `claude -p` runs driven by the scheduled-tasks MCP (`mcp__scheduled-tasks__*`). Prompt sources live in `scheduled-tasks/<name>/prompt.md`; runtime prompts live inside the MCP and should be kept in sync with disk.
 
 ### 11.2 Remediation workflow
 
@@ -700,6 +697,10 @@ Upgrade cadence:
 
 Every active project declares `engines.node` matching the watchlist Node target (currently `>=22.0.0`) at the root `package.json`, plus a root `.nvmrc` (or `.node-version`) carrying the matching major for local-dev parity. Workspace-level `engines.node` overrides are allowed only when a workspace genuinely needs a different floor; otherwise inherit from root. Reasoning: Node-tier tooling (turbo, lint-staged, husky, codegen) silently picks up whatever Node is on PATH when no engine is declared, which produces drift the dep-major-upgrade-watch audit can only detect after the fact.
 
+#### Python engine declaration
+
+Every active Python project declares `requires-python` in `pyproject.toml` matching the watchlist Python target (currently `>=3.12`), plus a root `.python-version` carrying the matching version for local-dev parity (read by `pyenv`, `uv`, `pdm`, and most editor integrations). Workspace-level overrides are allowed only when a sub-package genuinely needs a different floor. Reasoning is identical to Node: Python-tier tooling (mypy, ruff, pytest, codegen) silently picks up whatever `python3` is on PATH when no engine is declared, which produces interpreter-version drift the dep-major-upgrade-watch audit can only detect after the fact.
+
 ### 13.3 CVE monitoring
 
 GitHub's Dependabot alerts are the default channel. High-severity alerts get same-week attention. For runtime-critical projects (e.g., anything public-facing handling user data), subscribe to the relevant advisory feeds (Node security, Rust advisory DB, GHSA).
@@ -716,7 +717,7 @@ The parent layer grows slowly and deliberately. A rule earns parent status only 
 - **n = 2:** a rule appears in two. Enter it in `core-rules/deferred.md` with source, what/why, and the condition for lift (usually "when a third project adopts a close variant").
 - **n = 3:** a third project adopts a close variant of the rule. Promote: edit `core-rules/CLAUDE.md` or `core-rules/hooks.md` as appropriate, cite the three sources, delete the `deferred.md` entry, run `parent-hook-drift` to sync.
 
-This is the discipline that prevents `core-rules/CLAUDE.md` from bloating into a 30 KB kitchen sink.
+This is the discipline that prevents `core-rules/CLAUDE.md` from bloating into a 30 KB kitchen sink (as Neev's did before SE Core extracted it).
 
 ### 14.2 Demotion
 
@@ -738,7 +739,7 @@ Edits to `core-rules/` affect every registered project immediately (via the syml
 When a canonical hook changes:
 1. Edit `core-rules/hooks/<name>.sh` in `se-core/`.
 2. Commit in `se-core/` with `fix:` or `feat:` prefix.
-3. Rsync to every active project with `scripts/sync-hooks.sh --yes`.
+3. Rsync to every active project: `for p in $(registry-list); do cp core-rules/hooks/<name>.sh ~/projects/personal/$p/.claude/hooks/; done`.
 4. Commit in each project with `chore: sync <hook> to canonical`.
 5. Next `parent-hook-drift` run confirms all byte-identical.
 
@@ -750,9 +751,9 @@ Step 3 will be automated by `scripts/sync-hooks.sh` once it exists (currently ma
 
 **Active project** — appears in `registry.md`, not in `blacklist.md`.
 
-**Canonical hook** — the nine `.sh` files under `core-rules/hooks/`. Projects deploy copies; drift is flagged by `parent-hook-drift`.
+**Canonical hook** — the nine `.sh` files under `~/projects/se-core/core-rules/hooks/`. Projects deploy copies; drift is flagged by `parent-hook-drift`.
 
-**Control plane** — this repository. The place where the regime is defined, evolved, and audited.
+**Control plane** — the contents of `~/projects/se-core/`. The place where the regime is defined, evolved, and audited.
 
 **Drift** — a project's deployed hook or required file has diverged from canonical. Critical: flagged, must be remediated.
 
@@ -762,7 +763,7 @@ Step 3 will be automated by `scripts/sync-hooks.sh` once it exists (currently ma
 
 **Inheritance** — the mechanism by which each project picks up parent rules. Primary: `.claude/rules/se-core.md` symlink. Secondary: `@`-import in project `CLAUDE.md`.
 
-**Parent layer** — the rules and hooks in `core-rules/` that every registered project inherits.
+**Parent layer** — the rules and hooks in `~/projects/se-core/core-rules/` that every registered project inherits.
 
 **Receipts** — the verification command + exit code + diff lines required to claim "done."
 

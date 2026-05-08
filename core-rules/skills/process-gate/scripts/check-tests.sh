@@ -28,6 +28,32 @@ if [ -z "${PROCESS_GATE_TYPECHECK_CMD:-}${PROCESS_GATE_LINT_CMD:-}${PROCESS_GATE
     PROCESS_GATE_LINT_CMD="${PROCESS_GATE_LINT_CMD:-$PM lint}"
     PROCESS_GATE_TEST_CMD="${PROCESS_GATE_TEST_CMD:-$PM test}"
   fi
+
+  # Python toolchain detection (order: uv → poetry → pdm → bare pyproject)
+  if [ -z "${PM:-}" ] && [ -f "pyproject.toml" ]; then
+    if   [ -f "uv.lock" ];     then PY_RUN="uv run"
+    elif [ -f "poetry.lock" ]; then PY_RUN="poetry run"
+    elif [ -f "pdm.lock" ];    then PY_RUN="pdm run"
+    else PY_RUN="python -m"
+    fi
+
+    # Default typecheck: mypy if configured (pyproject [tool.mypy] or mypy.ini).
+    # Pyright is opt-in via explicit PROCESS_GATE_TYPECHECK_CMD override.
+    if grep -q '^\[tool\.mypy\]' pyproject.toml 2>/dev/null || [ -f "mypy.ini" ]; then
+      PROCESS_GATE_TYPECHECK_CMD="${PROCESS_GATE_TYPECHECK_CMD:-$PY_RUN mypy .}"
+    fi
+
+    # Default lint: ruff if configured.
+    if grep -q '^\[tool\.ruff\]' pyproject.toml 2>/dev/null || [ -f "ruff.toml" ]; then
+      PROCESS_GATE_LINT_CMD="${PROCESS_GATE_LINT_CMD:-$PY_RUN ruff check .}"
+    fi
+
+    # Default tests: pytest if configured.
+    if grep -q '^\[tool\.pytest\.ini_options\]' pyproject.toml 2>/dev/null \
+       || [ -f "pytest.ini" ] || [ -f "conftest.py" ]; then
+      PROCESS_GATE_TEST_CMD="${PROCESS_GATE_TEST_CMD:-$PY_RUN pytest}"
+    fi
+  fi
 fi
 
 PROCESS_GATE_TEST_TIMEOUT="${PROCESS_GATE_TEST_TIMEOUT:-300}"
@@ -36,7 +62,11 @@ run_check() {
   local label="$1" cmd="$2"
   if [ -z "$cmd" ]; then
     findings+=("$label: not declared in local.config.sh and not auto-detectable")
-    [ "$worst" = "pass" ] && worst="warn"
+    if [ "$label" = "typecheck" ]; then
+      worst="fail"
+    elif [ "$worst" = "pass" ]; then
+      worst="warn"
+    fi
     return 0
   fi
 

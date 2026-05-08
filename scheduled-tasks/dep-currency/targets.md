@@ -1,6 +1,6 @@
 # Targets — dep-currency
 
-Reads `__SE_CORE_PATH__/registry.md` at runtime. Target set = `registry \ blacklist`.
+Reads `__USER_HOME__/projects/se-core/registry.md` at runtime. Target set = `registry \ blacklist`.
 
 ## Runner requirement
 
@@ -29,7 +29,7 @@ Available directives:
 
 E.g.:
 ```
-# project-epsilon: registry=https://registry.private.example
+# vericite: registry=https://registry.private.example
 ```
 
 No overrides set as of 2026-05-01.
@@ -43,7 +43,7 @@ No overrides set as of 2026-05-01.
 Default skips for the current registry as of 2026-05-01:
 
 ```
-# project-zeta: Unity Package Manager has no public registry HTTP endpoint comparable to npm/pypi; tracked manually via dep-major-upgrade-watch watchlist.
+# lume: Unity Package Manager has no public registry HTTP endpoint comparable to npm/pypi; tracked manually via dep-major-upgrade-watch watchlist.
 ```
 
 ## Tunable thresholds

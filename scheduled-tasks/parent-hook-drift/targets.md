@@ -1,6 +1,6 @@
 # Targets — parent-hook-drift
 
-Reads `__SE_CORE_PATH__/registry.md` at
+Reads `__USER_HOME__/projects/se-core/registry.md` at
 runtime. Target set = `registry \ blacklist`.
 
 ## Scope
@@ -8,7 +8,7 @@ runtime. Target set = `registry \ blacklist`.
 - Weekly, Sunday at 9 PM — deliberately end-of-week and late, so the
   Monday morning audits can act on findings the same week.
 - Compares each project's `.claude/hooks/` against canonical in
-  `__SE_CORE_PATH__/core-rules/hooks/`.
+  `__USER_HOME__/projects/se-core/core-rules/hooks/`.
 
 ## Canonical hook manifest
 
@@ -34,11 +34,11 @@ hook.
 Projects are allowed to have hooks beyond the canonical set. Known extras:
 
 ```
-# project-name: local-hook-name.sh
+msme-neev: check-module-boundary.sh
 ```
 
-If project-specific hooks appear, add them here so they're documented as
-intentional local extensions.
+No other project-specific hooks as of 2026-04-20. If new ones appear, add
+them here so they're not flagged as "unexpected".
 
 ## Universally allowed config files
 

@@ -6,7 +6,7 @@ You are scanning every active project's dependency graph for **known security vu
 
 This audit runs in the standard scheduled-task sandbox (Linux aarch64). The sandbox has:
 
-- **File tools** (`Read`, `Glob`, `Grep`) with access to `__SE_CORE_PATH__/` AND `__PROJECTS_ROOT__/<project>/`. Use these for all lockfile / manifest reads. The `cross-project-process-audit` audit uses the same access pattern successfully.
+- **File tools** (`Read`, `Glob`, `Grep`) with access to `__USER_HOME__/projects/se-core/` AND `__PROJECTS_ROOT__/<project>/`. Use these for all lockfile / manifest reads. The `cross-project-process-audit` audit uses the same access pattern successfully.
 - **Bash sandbox** (`mcp__workspace__bash`) with `curl`, `jq`, and `npm` available, plus public-internet network. **Bash does NOT see `__PROJECTS_ROOT__/`.** Don't `ls` or `cat` project files from bash — it will return "No such file or directory" and an earlier version of this audit mistook that for "project paths unmounted." Use `Read` / `Glob` for project paths; use bash only for HTTP calls.
 - `osv-scanner`, `pnpm`, `bun`, `cargo`, `go` are **not** installed in the sandbox. Don't rely on them. Vulnerability data comes from osv.dev's HTTP API directly.
 
@@ -24,10 +24,10 @@ When sampling worktree state, do NOT invoke `git status` against project worktre
 
 ## Inputs
 
-1. `Read` `__SE_CORE_PATH__/registry.md`.
-2. `Read` `__SE_CORE_PATH__/blacklist.md` (both sections).
+1. `Read` `__USER_HOME__/projects/se-core/registry.md`.
+2. `Read` `__USER_HOME__/projects/se-core/blacklist.md` (both sections).
 3. Target set = `registry \ blacklist` (sections 1 + 2).
-4. Read prior audit at `__SE_CORE_PATH__/audits/<previous-date>-dep-vulnerabilities.md` if present (use `Glob` to find the most recent) — used only for the "newly introduced this run" delta.
+4. Read prior audit at `__USER_HOME__/projects/se-core/audits/<previous-date>-dep-vulnerabilities.md` if present (use `Glob` to find the most recent) — used only for the "newly introduced this run" delta.
 
 ## Connected-folder preflight (do this FIRST, before per-project work)
 
@@ -55,18 +55,18 @@ Work via file tools, not bash, for everything project-local.
 
 **Step 1.1 — Probe the project root.** For each target `<project>`, attempt `Read` (one at a time; "file not found" is expected for irrelevant ecosystems):
 
-- `<project-root>/package.json` — Node single-package or monorepo root
-- `<project-root>/pnpm-workspace.yaml` — pnpm monorepo discriminator
-- `<project-root>/pyproject.toml` — Python
-- `<project-root>/Cargo.toml` — Rust
-- `<project-root>/go.mod` — Go
-- `<project-root>/Packages/manifest.json` — Unity at root
-- `<project-root>/ProjectSettings/ProjectVersion.txt` — Unity at root
+- `personal/<project>/package.json` — Node single-package or monorepo root
+- `personal/<project>/pnpm-workspace.yaml` — pnpm monorepo discriminator
+- `personal/<project>/pyproject.toml` — Python
+- `personal/<project>/Cargo.toml` — Rust
+- `personal/<project>/go.mod` — Go
+- `personal/<project>/Packages/manifest.json` — Unity at root
+- `personal/<project>/ProjectSettings/ProjectVersion.txt` — Unity at root
 
-**Step 1.2 — Unity nested-app probe.** If neither root `Packages/manifest.json` nor root `ProjectSettings/ProjectVersion.txt` was found AND the project's class in registry includes "game/Unity", probe these conventional nested layouts:
+**Step 1.2 — Unity nested-app probe.** If neither root `Packages/manifest.json` nor root `ProjectSettings/ProjectVersion.txt` was found AND the project's class in registry includes "game/Unity", probe these conventional nested layouts (Lume uses `LumeApp/`):
 
-- `<project-root>/<ProjectNameCapitalized>App/Packages/manifest.json`
-- `<project-root>/<ProjectName>/Packages/manifest.json`
+- `personal/<project>/<ProjectNameCapitalized>App/Packages/manifest.json`
+- `personal/<project>/<ProjectName>/Packages/manifest.json`
 
 If found, set the Unity project root accordingly. If not found anywhere, emit `info` (`<project>: Unity manifest not found at root or conventional sub-paths`) and skip Unity scanning for the project.
 
@@ -74,9 +74,9 @@ If found, set the Unity project root accordingly. If not found anywhere, emit `i
 
 For each workspace pattern, expand with a **shallow** Glob — replace the trailing `*` (or `**`) with a concrete depth-1 match against `package.json`:
 
-- Pattern `apps/*` → Glob `<project-root>/apps/*/package.json`
-- Pattern `packages/*` → Glob `<project-root>/packages/*/package.json`
-- Pattern `*` → Glob `<project-root>/*/package.json` (rare, but supported)
+- Pattern `apps/*` → Glob `personal/<project>/apps/*/package.json`
+- Pattern `packages/*` → Glob `personal/<project>/packages/*/package.json`
+- Pattern `*` → Glob `personal/<project>/*/package.json` (rare, but supported)
 - Pattern `apps/**` (deep) → flatten to depth-2 with `apps/*/package.json` and `apps/*/*/package.json`; do NOT use `apps/**/package.json` literally.
 
 **Post-filter Glob results.** The Glob tool in this runner is noisy — it can return paths under build artifact directories that match the filename. After every Glob, drop any result whose path contains any of these segments anywhere:
@@ -163,7 +163,7 @@ Do not attempt `pnpm audit` or `bun audit`; the binaries aren't installed.
 
 ## Output
 
-Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-dep-vulnerabilities.md`:
+Write to `__USER_HOME__/projects/se-core/audits/YYYY-MM-DD-dep-vulnerabilities.md`:
 
 ```
 # Dependency vulnerabilities — <date>

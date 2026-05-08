@@ -34,7 +34,7 @@ detected toolchain, record "not configured" and skip.
 ### 2. Compare to trend history
 
 Read prior audits at
-`__SE_CORE_PATH__/audits/*-lint-debt-trend.md`
+`__USER_HOME__/projects/se-core/audits/*-lint-debt-trend.md`
 and extract the per-project counts. Compute deltas vs. 1 week ago, 1 month
 ago, 3 months ago.
 
@@ -46,14 +46,14 @@ ago, 3 months ago.
 
 ## Output
 
-Write to `__SE_CORE_PATH__/audits/YYYY-MM-DD-lint-debt-trend.md`.
+Write to `__USER_HOME__/projects/se-core/audits/YYYY-MM-DD-lint-debt-trend.md`.
 
 Format: one row per project, one column per tool, with deltas in parens.
 
 ```
 | Project | TS errors | ESLint warnings | Ruff warnings | Trend |
 |---|---|---|---|---|
-| legacy-project-alpha | 0 (→) | 12 (+3 WoW) | — | ⚠️ regression |
+| msme-neev | 0 (→) | 12 (+3 WoW) | — | ⚠️ regression |
 | ... | | | | |
 ```
 
@@ -71,6 +71,6 @@ actionable signal would train the pipeline to be ignored.
 Turn this on when either:
 - Any Tier 1 task (especially `cross-project-process-audit`) starts
   reporting warning creep as a recurring finding, or
-- A project's PR-review voproject-zeta starts catching lint warnings as a
+- A project's PR-review volume starts catching lint warnings as a
   not-trivial fraction of comments, or
 - 6 months have passed and we just want to see the trend.

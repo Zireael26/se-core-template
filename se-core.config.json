@@ -1,6 +1,6 @@
 {
   "$schema": "./scripts/lib/se-core.config.schema.json",
-  "comment": "Edit this file after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, sync-codex-hooks.sh, or sync-to-template.sh. The template defaults to Claude Code and Codex; remove a harness only if you intentionally do not use it.",
+  "comment": "Edit this file after cloning. Replace placeholders with absolute paths and your details before invoking onboard-project.sh, sync-hooks.sh, sync-codex-hooks.sh, or sync-to-template.sh. Keep harnesses as [\"claude\"] for Claude-only installs; add \"codex\" when opting into Codex parity.",
 
   "se_core_root": "__SE_CORE_PATH__",
   "projects_root": "__PROJECTS_ROOT__",
@@ -9,7 +9,7 @@
   "maintainer_name": "__MAINTAINER_NAME__",
   "github_user": "__GITHUB_USER__",
 
-  "harnesses": ["claude", "codex"],
+  "harnesses": ["claude"],
 
   "template": {
     "remote": "git@github.com:__GITHUB_USER__/se-core-template.git",
@@ -18,8 +18,7 @@
       "audits/",
       "blacklist.md",
       "registry.md"
-    ],
-    "extra_redactions": []
+    ]
   },
 
   "sed_flavor": "auto"

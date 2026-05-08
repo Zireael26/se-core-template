@@ -18,7 +18,13 @@ PROCESS_GATE_TEST_CMD="pnpm test"
 
 Web stacks default to `pnpm` if `pnpm-lock.yaml` is present, `bun` if `bun.lockb`, `npm` if `package-lock.json`. The gate auto-detects but local.config.sh wins.
 
-For non-Node stacks the commands are project-supplied: `cargo check && cargo clippy && cargo test`, `go vet && go test ./...`, `mypy . && ruff check . && pytest`, etc.
+Python projects auto-detect in this order: `uv.lock` → `uv run`, `poetry.lock` → `poetry run`, `pdm.lock` → `pdm run`, otherwise `pyproject.toml` alone → `python -m` (from the project's active venv). Default commands once a runner is selected:
+
+- **typecheck:** `<runner> mypy .` when `[tool.mypy]` exists in `pyproject.toml` or a `mypy.ini` is present. Pyright remains available via an explicit `PROCESS_GATE_TYPECHECK_CMD` override; the gate does not auto-pick Pyright.
+- **lint:** `<runner> ruff check .` when `[tool.ruff]` exists in `pyproject.toml` or a `ruff.toml` is present.
+- **tests:** `<runner> pytest` when `[tool.pytest.ini_options]` exists in `pyproject.toml` or `pytest.ini`/`conftest.py` is present.
+
+For other non-Node, non-Python stacks the commands are project-supplied: `cargo check && cargo clippy && cargo test`, `go vet && go test ./...`, etc.
 
 ## Posture
 
@@ -28,7 +34,8 @@ For non-Node stacks the commands are project-supplied: `cargo check && cargo cli
 | Typecheck or lint fails | **fail** — non-negotiable; same gate that `stop-verify` enforces in-session |
 | Tests fail | **fail** |
 | Tests timeout (default 5 min, override via `PROCESS_GATE_TEST_TIMEOUT`) | **fail** |
-| One or more commands not declared in `local.config.sh` AND not auto-detectable | **warn** — declare them |
+| Typecheck command not declared AND not auto-detectable | **fail** — typecheck is non-negotiable per `engineering-process.md` §7 (Definition of done); a project that cannot typecheck cannot meet the bar |
+| Lint or test command not declared AND not auto-detectable | **warn** — declare them in `local.config.sh` |
 
 ## Coverage
 

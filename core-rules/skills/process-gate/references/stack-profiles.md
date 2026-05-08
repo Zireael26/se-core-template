@@ -15,17 +15,39 @@ Typical validators contributors add at the project level:
 - `check-input-font-size.sh` — iOS-zoom guard (input fields ≥ 16px to prevent zoom on focus).
 - `check-phrases.sh` — forbidden-phrase list (brand voice).
 
-These are project-specific implementations; the canonical layer doesn't ship them. Keep worked examples in project-local docs until a validator is promoted.
+These are project-specific implementations; the canonical layer doesn't ship them. TGSC's `.claude/skills/process-gate/scripts/` is a worked example.
 
 ### `monorepo-pnpm` — pnpm-workspace monorepos
 
 Common validators:
 
-- `check-module-boundary.sh` — package import-boundary enforcement (for example, one workspace package may not import from another forbidden layer).
+- `check-module-boundary.sh` — package import-boundary enforcement (e.g., `@neev/orders` may not import from `@neev/inventory`).
 - `check-package-graph.sh` — circular-dep detection.
 - `check-scope-allowlist.sh` — Conventional-Commit scope must match a workspace package name.
 
-Keep worked examples project-local until a validator is promoted.
+Neev is the worked example.
+
+### `service-node` — Node.js HTTP services / APIs
+
+Typical project-local validators contributors might add (none ship canonically — n=0 in the registry today):
+
+- `check-route-surface.sh` — diff the OpenAPI / route table; flag breaking changes without a version bump.
+- `check-env-sync.sh` — `.env.example` lists every key consumed by the running service.
+- `check-migration-safety.sh` — DB migration adds defaults / handles rollback for any non-additive change.
+- `check-dockerfile.sh` — Dockerfile lint (hadolint), pinned base images, no root user at runtime.
+
+These are sketches, not canon. **Promotion to canonical requires the Rule of Three** (`engineering-process.md` §14.1); this profile exists in the registry's taxonomy so backend-shaped projects have a place to land their validators while waiting for n=3.
+
+### `service-python` — Python HTTP services / APIs
+
+Typical project-local validators (same n=0 status as `service-node`):
+
+- `check-route-surface.sh` — same purpose as the Node variant; framework-specific (FastAPI, Flask, Django).
+- `check-env-sync.sh` — `.env.example` parity check.
+- `check-migration-safety.sh` — Alembic / Django migration audit; flags non-additive changes without a defaults-and-backfill plan.
+- `check-dockerfile.sh` — Dockerfile lint, pinned base image, non-root runtime user.
+
+Same Rule-of-Three caveat: nothing canonical ships under `service-python` until three independent backend-shaped projects converge on a shared validator shape.
 
 ### `unity` — Unity / native game projects
 
@@ -35,7 +57,7 @@ Common validators:
 - `check-asset-bundle.sh` — `.unity` and `.prefab` files don't have merge-conflict markers.
 - `check-no-binary-bloat.sh` — diff size sanity for binary assets.
 
-The canonical Unity profile defers to Rule of Three until three independent game/native projects need the same validator shape.
+Lume is the only current adopter; canonical Unity profile defers to Rule of Three (n=1 today).
 
 ### `native-other` — Rust / Go / Python / etc.
 
@@ -86,8 +108,8 @@ When three independent projects adopt a close variant of the same validator, pro
 
 Profiles waiting for a third witness queue in `core-rules/deferred.md`.
 
-## Unity carve-out
+## Lume carve-out
 
-Unity/native game projects can declare `PROCESS_GATE_STACK_PROFILE="unity"`. Stack-specific validators are project-local until the Rule of Three promotes them. The canonical six gates still apply.
+Lume (Unity, 3D) is the sole `unity`-profile project. Stack-specific validators are project-local until n=2. The canonical six gates still apply.
 
-Document the carve-out in the project's `registry.md` row. The extended `parent-hook-drift` audit treats `PROCESS_GATE_STACK_PROFILE="unity"` with no canonical scripts as expected, not drift.
+Lume's row in `registry.md` documents the carve-out. The extended `parent-hook-drift` audit treats `PROCESS_GATE_STACK_PROFILE="unity"` with no canonical scripts as expected, not drift.

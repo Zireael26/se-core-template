@@ -73,7 +73,7 @@ criteria — the specific signal that would justify turning it on.
 
 To promote a Tier 2 task to Tier 1:
 
-1. Verify the prompt is still acproject-deltae (reference the current hook manifest,
+1. Verify the prompt is still accurate (reference the current hook manifest,
    current file paths, current thresholds).
 2. Register via `mcp__scheduled-tasks__create_scheduled_task` with a
    thin-wrapper prompt that points at this directory (same pattern as the
@@ -83,13 +83,21 @@ To promote a Tier 2 task to Tier 1:
 
 ---
 
-## Project-local tasks (not centralized)
+## Neev-scoped tasks (not centralized)
 
-Some projects may keep their own scheduled checks outside this directory.
-Those tasks are intentionally out of scope for the centralized registry
-runner until the same concern appears across enough projects to justify a
-parent-layer audit. If a project-local task generalizes, lift it into this
-directory as a Tier 1 or Tier 2 task and retire the local copy.
+The following scheduled tasks predate the centralized stack and operate
+only on `msme-neev`. They are **not** in this directory and do not iterate
+the registry. They continue to run in parallel:
+
+| Task | Cadence | Purpose |
+|---|---|---|
+| `weekly-process-health-check` | Mon 09:00 | Neev EPM gaps, risk register, tech debt. |
+| `sprint-boundary-review` | Fri 09:00 (biweekly) | Neev Definition-of-Done audit, sprint summary. |
+| `monthly-documentation-audit` | 1st 09:00 | Neev EPM currency, missing ADRs, Obsidian sync. |
+
+If any of their concerns generalize beyond Neev — i.e., we find ourselves
+wanting the same check on another project — lift them into this directory
+as a Tier 1 task and retire the Neev-scoped copy.
 
 ---
 
@@ -118,7 +126,7 @@ Every `targets.md` should specify:
 4. **Tunable thresholds** — if the task has magic numbers, surface them
    here with defaults and override syntax.
 
-Some tasks also carry a project-deltaed, human-edited reference file alongside
+Some tasks also carry a curated, human-edited reference file alongside
 `prompt.md` / `targets.md` (e.g., `dep-major-upgrade-watch/watchlist.md`).
 Convention: name it for what it contains, document the read/write contract
 inline at the top of the file, and never let the audit modify it.
@@ -130,16 +138,16 @@ project must say so loudly in its Boundaries section.
 
 ## Connected-folder requirement (dep-* tasks)
 
-The three dependency tasks (`dep-vulnerabilities`, `dep-currency`, `dep-major-upgrade-watch`) read files under the configured projects root. Some runners bound file access to **connected folders** — directories explicitly attached to the running session.
+The three dependency tasks (`dep-vulnerabilities`, `dep-currency`, `dep-major-upgrade-watch`) Read files under `__PROJECTS_ROOT__/<project>/`. Cowork mode bounds `Read` to **connected folders** — directories explicitly attached to the running session.
 
 Each scheduled task captures its connected-folder set **at registration time** from the session that registered it. The cron path runs the task with that captured set; "Run now" inherits the calling Cowork session's set instead.
 
-**Required folder set for dep-* tasks:** both the configured SE Core root and projects root. Reference: `cross-project-process-audit` and `gotchas-rollup` use the same folder set.
+**Required folder set for dep-* tasks:** both `__USER_HOME__/projects/se-core/` and `__PROJECTS_ROOT__/`. Reference: `cross-project-process-audit` and `gotchas-rollup` are configured this way and run successfully.
 
 **If you create or recreate a dep-* task**, do it from a Cowork session that has both folders connected — otherwise the new registration will only capture `se-core/` and the task will hit the connected-folder preflight on every run, write a stub report, and exit. The MCP scheduler tool (`create_scheduled_task` / `update_scheduled_task`) does not expose folder selection; the only way to fix a misregistered task is to delete and recreate from a properly-connected session, or edit folder selection in the Cowork app's task-settings UI.
 
 **Symptoms of a misconfigured task:**
-- Audit report contains `projects root not connected to this session` or similar info finding (preflight detected the issue and exited cleanly).
+- Audit report contains `personal/ not connected to this session` info finding (preflight detected the issue and exited cleanly).
 - Older audits — written before the preflight — instead show 6 noisy "<project>: path missing" rows; those reports are misleading and the underlying cause was the same.
 
 ---

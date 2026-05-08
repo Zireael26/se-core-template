@@ -66,7 +66,7 @@ Full hook specifications in `hooks.md` (sibling file). Two tiers: **fast-local**
 
 ## Skills
 
-Canonical skills under `core-rules/skills/<name>/`. Inherited by every project via `.claude/skills/<name>/` for Claude Code and `.agents/skills/<name>/` for Codex. Current canonical skill: **process-gate** — pre-PR enforcement of commit format, PR size, secrets, bypass markers, tests, docs discipline, and stack-profile validators. Mandatory before merging to `main`. Spec: `core-rules/skills/process-gate/SKILL.md`.
+Canonical skills under `core-rules/skills/<name>/`. Inherited by every project via `.claude/skills/<name>/` symlink (and `.agents/skills/<name>/` for Codex-enabled projects). Current canonical skill: **process-gate** — pre-PR enforcement of commit format, PR size, secrets, bypass markers, tests, docs discipline, and stack-profile validators. Mandatory before merging to `main`. Spec: `core-rules/skills/process-gate/SKILL.md`.
 
 ## Project-local files every project maintains
 
@@ -76,7 +76,7 @@ Canonical skills under `core-rules/skills/<name>/`. Inherited by every project v
 
 ## Control plane
 
-Active projects opt in via `registry.md`; temporary exemptions in `blacklist.md`. Audits, registry, and project onboarding live in the configured SE Core root. Narrative manual (why/how, onboarding playbook, incident patterns, glossary): `engineering-process.md` — read on demand when you need deeper context than these terse rules give you. Target <5 KB for this file; split deeper reference into sibling docs on demand.
+Active projects opt in via `registry.md`; temporary exemptions in `blacklist.md`. Audits, registry, and project onboarding live in `__USER_HOME__/projects/se-core/`. Narrative manual (why/how, onboarding playbook, incident patterns, glossary): `__USER_HOME__/projects/se-core/engineering-process.md` — read on demand when you need deeper context than these terse rules give you. Target <5 KB for this file; split deeper reference into sibling docs on demand.
 
 ## Inheritance
 
