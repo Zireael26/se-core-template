@@ -6,6 +6,9 @@
 #   - Runs on SessionStart with source=startup or source=resume.
 #   - Assembles: current branch, last 5 commits, dirty-file count,
 #     context-log.md (if present), unresolved gotchas.md entries.
+#   - context-log.md and gotchas.md are read from the canonical project root
+#     (resolved via `git rev-parse --git-common-dir`) so worktree sessions
+#     still see the repo-level files.
 #   - Emits {"hookSpecificOutput":{"hookEventName":"SessionStart",
 #            "additionalContext":"..."}}.
 #   - Output trimmed to ≤ 2000 chars. Never blocks. Exit 0 always.
@@ -35,10 +38,13 @@ esac
 
 PROJECT_DIR="${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
 cd "$PROJECT_DIR" 2>/dev/null || exit 0
+REPO_ROOT=$(_se_repo_root "$PROJECT_DIR")
 
 CTX=""
 
 # --- Git section ---
+# Branch / commits / dirty count reflect the active checkout (worktree HEAD
+# when in a worktree, main HEAD otherwise) — the user's working context.
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
   DIRTY=$(git status --porcelain 2>/dev/null | awk 'END{print NR}')
@@ -53,8 +59,8 @@ ${COMMITS}
 fi
 
 # --- context-log.md (from a previous session) ---
-if [ -f "context-log.md" ]; then
-  LOG_CONTENT=$(head -c 800 context-log.md)
+if [ -f "${REPO_ROOT}/context-log.md" ]; then
+  LOG_CONTENT=$(head -c 800 "${REPO_ROOT}/context-log.md")
   CTX="${CTX}--- context-log.md (previous session) ---
 ${LOG_CONTENT}
 
@@ -63,8 +69,8 @@ fi
 
 # --- Unresolved gotchas ---
 # Convention: entries tagged with 'unresolved' (case-insensitive) in gotchas.md.
-if [ -f "gotchas.md" ]; then
-  UNRESOLVED=$(grep -inE 'unresolved' gotchas.md 2>/dev/null | head -10 || true)
+if [ -f "${REPO_ROOT}/gotchas.md" ]; then
+  UNRESOLVED=$(grep -inE 'unresolved' "${REPO_ROOT}/gotchas.md" 2>/dev/null | head -10 || true)
   if [ -n "$UNRESOLVED" ]; then
     CTX="${CTX}--- Unresolved gotchas ---
 ${UNRESOLVED}

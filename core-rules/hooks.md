@@ -50,18 +50,20 @@ Goal: sub-second feedback, zero approval fatigue. If a fast-local hook fails, Cl
 ### session-context
 - **Event:** `SessionStart` (source: `startup` or `resume`)
 - **Injects:** current git branch, last 5 commits on the branch, dirty-file count, any `context-log.md` from the last session, any outstanding `gotchas.md` entries tagged unresolved
+- **Path resolution:** `context-log.md` and `gotchas.md` are read from the **canonical project root** (resolved via `git rev-parse --git-common-dir`), so worktree sessions still see the repo-level files instead of looking only inside the worktree.
 - **Return:** `{ "additionalContext": "<assembled header, <2K chars>" }`
 - **Exit:** never blocks
 
 ### save-context-log
 - **Event:** Claude Code `PreCompact`; Codex `Stop`
-- **Writes:** `context-log.md` in the project root with — current branch, files touched this session, open todos, last two user asks, last two assistant decisions
+- **Writes:** `context-log.md` at the **canonical project root** (resolved via `git rev-parse --git-common-dir`) with — current branch, files touched this session, open todos, last two user asks, last two assistant decisions
+- **Worktree behavior:** the log is written to the main checkout regardless of which worktree the session ran in, so worktree cleanup does not destroy the log. Cross-worktree clobbering on the same canonical root is a known limitation pending the per-branch follow-up; same-branch sessions are unaffected.
 - **Return:** no stdout needed; file write is the side effect
 - **Exit:** never blocks
 
 ### post-compact-context
 - **Event:** `SessionStart` (source: `compact` when provided)
-- **Injects:** contents of `context-log.md` if present
+- **Injects:** contents of `context-log.md` if present, read from the **canonical project root** (resolved via `git rev-parse --git-common-dir`)
 - **Return:** `{ "additionalContext": "<contents of context-log.md>" }`
 - **Exit:** never blocks
 

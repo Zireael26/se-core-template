@@ -34,3 +34,28 @@ _se_require_jq() {
 _se_project_dir() {
   printf '%s' "${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
 }
+
+# _se_repo_root <dir>
+#   - prints the canonical repo root resolved via `git rev-parse --git-common-dir`
+#     (one level up from the common dir), so worktree sessions still see
+#     `context-log.md` and `gotchas.md` at the main checkout.
+#   - falls back to <dir> when git is unavailable, the path is not a git repo,
+#     or any step fails — never errors. Caller can treat the output as a
+#     directory path regardless.
+#
+# Replaces the inline `__se_repo_root` block in the three context-log hooks
+# (session-context, save-context-log, post-compact-context) on both harnesses.
+# See `audits/2026-05-11-cross-project-process-audit.md` and the
+# `0001-fix-hooks-context-log-canonical-root.patch` history.
+_se_repo_root() {
+  local dir="$1" common
+  command -v git >/dev/null 2>&1 || { printf '%s' "$dir"; return; }
+  git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { printf '%s' "$dir"; return; }
+  common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || { printf '%s' "$dir"; return; }
+  [ -n "$common" ] || { printf '%s' "$dir"; return; }
+  case "$common" in
+    /*) ;;
+    *) common="${dir}/${common}" ;;
+  esac
+  ( cd "${common}/.." 2>/dev/null && pwd ) || printf '%s' "$dir"
+}

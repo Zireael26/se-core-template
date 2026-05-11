@@ -10,10 +10,16 @@
 # under <project>/.claude/hooks/.
 #
 # Usage:
-#   sync-hooks.sh              # interactive: confirm before each project
-#   sync-hooks.sh --dry-run    # show what would change, no writes
-#   sync-hooks.sh --yes        # non-interactive, sync everywhere
-#   sync-hooks.sh <name>       # only that project (must be in registry)
+#   sync-hooks.sh                  # interactive: confirm before each project
+#   sync-hooks.sh --dry-run        # show what would change, no writes
+#   sync-hooks.sh --yes            # non-interactive, sync everywhere
+#   sync-hooks.sh <name>           # only that project (must be in registry)
+#   sync-hooks.sh --from-main-only # refuse to run from a worktree / detached HEAD
+#
+# Provenance: every run prints SOURCE_ROOT, HEAD SHA, and the SHA of one
+# bellwether hook before touching any project. The 2026-05-09 cross-project
+# sync silently used a stale source (pre-May-8 canonical) and missed the
+# context-log hooks; see audits/2026-05-11-sync-tool-rca.md.
 
 set -euo pipefail
 
@@ -25,11 +31,13 @@ SOURCE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DRY_RUN=false
 ASSUME_YES=false
 ONLY_PROJECT=""
+FROM_MAIN_ONLY=false
 
 for arg in "$@"; do
   case "$arg" in
-    --dry-run) DRY_RUN=true ;;
-    --yes|-y)  ASSUME_YES=true ;;
+    --dry-run)         DRY_RUN=true ;;
+    --yes|-y)          ASSUME_YES=true ;;
+    --from-main-only)  FROM_MAIN_ONLY=true ;;
     --help|-h)
       sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
       exit 0
@@ -50,6 +58,33 @@ BLACKLIST="$SE_CORE_ROOT/blacklist.md"
 
 [ -d "$CANONICAL_HOOKS_DIR" ] || { echo "canonical hooks dir missing: $CANONICAL_HOOKS_DIR" >&2; exit 1; }
 [ -f "$REGISTRY" ]            || { echo "registry.md missing: $REGISTRY" >&2; exit 1; }
+
+# --- Provenance breadcrumbs ---
+# Loudly identify the source the sync is reading from. The 2026-05-09 incident
+# was a stale source that silently shipped pre-May-8 hooks to every project;
+# logging this up front makes that class of bug visible in retrospect.
+SOURCE_HEAD="(no git)"
+if command -v git >/dev/null 2>&1 && git -C "$SOURCE_ROOT" rev-parse HEAD >/dev/null 2>&1; then
+  SOURCE_HEAD="$(git -C "$SOURCE_ROOT" rev-parse --short HEAD)"
+fi
+BELLWETHER="$CANONICAL_HOOKS_DIR/session-context.sh"
+BELLWETHER_SHA="(missing)"
+[ -f "$BELLWETHER" ] && BELLWETHER_SHA="$(shasum -a 256 "$BELLWETHER" | awk '{print $1}')"
+
+echo "Source:        $SOURCE_ROOT"
+echo "Source HEAD:   $SOURCE_HEAD"
+echo "Bellwether:    session-context.sh sha=${BELLWETHER_SHA:0:12}"
+
+# Worktree / stale-source guard.
+case "$SOURCE_ROOT" in
+  */.claude/worktrees/*)
+    if $FROM_MAIN_ONLY; then
+      echo "refusing to run: SOURCE_ROOT is inside a worktree and --from-main-only is set" >&2
+      exit 1
+    fi
+    echo "WARNING: SOURCE_ROOT is inside a worktree (.claude/worktrees/...) — pass --from-main-only to refuse this configuration." >&2
+    ;;
+esac
 
 # Parse Active projects table from registry.md
 # Format: | name | `/personal/<dir>` | class | notes |
@@ -118,8 +153,16 @@ sync_one() {
     return
   fi
   if [ ! -d "$proj/.claude/hooks" ]; then
-    echo "skip (no .claude/hooks/): $name"
-    return
+    # Single-project explicit invocation is treated as opt-in to onboarding.
+    # Bulk runs still skip silently so a stale project does not get a fresh
+    # hook stack by accident.
+    if [ -n "$ONLY_PROJECT" ] && [ "$ONLY_PROJECT" = "$name" ]; then
+      echo "  + creating .claude/hooks/ (explicit single-project run)"
+      $DRY_RUN || mkdir -p "$proj/.claude/hooks"
+    else
+      echo "skip (no .claude/hooks/): $name"
+      return
+    fi
   fi
 
   echo "== $name =="

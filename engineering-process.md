@@ -483,6 +483,8 @@ Architecture Decision Records are currently in `deferred.md` awaiting a third pr
 
 This is the canonical sequence. Run it manually, or point `scripts/onboard-project.sh` at it once the script exists (not yet).
 
+**Agent-driven shortcut.** `AGENT_ONBOARD_PROJECT.md` at the repo root wraps every step below into a paste-into-agent interview — detect mode (new / fresh-clone / repair), run `scripts/onboard-project.sh`, wire the project's `CLAUDE.md` `@`-import, update `registry.md`, and commit in both repos. Use it unless you specifically want the manual walkthrough.
+
 ### 10.1 Pre-flight questions (answer before anything)
 
 - **Name?** Final, committed. Directory name matches.

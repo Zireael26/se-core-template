@@ -25,7 +25,8 @@ Cross-cutting rules that apply to every active personal project. Project-specifi
 - Before any structural refactor on a file >300 LOC, remove all dead props, unused exports, unused imports, debug logs. Commit cleanup separately.
 - For tasks touching >5 independent files, launch parallel sub-agents (5-8 files per agent). Each gets its own ~167K context window. Sequential processing of 20 files guarantees context decay by file 12.
 - After 10+ messages, re-read any file before editing it. Auto-compaction may have destroyed your memory of its contents.
-- If you notice context degradation (referencing nonexistent variables, forgetting file structure), run `/compact` proactively. Write session state to `context-log.md`.
+- If you notice context degradation (referencing nonexistent variables, forgetting file structure), run `/compact` proactively — the `save-context-log` hook fires on `PreCompact` and writes `context-log.md` automatically; do not author the file by hand.
+- At session start, the `session-context` hook auto-injects the previous session's `context-log.md`. Treat that injection as authoritative for "what was I in the middle of" — branch, files touched, open todos, last decisions. Read it before asking the user to re-explain context. The log is stored at the canonical project root (resolved via `git --git-common-dir`), so worktree sessions see the same log as the main checkout.
 - Each file read is capped at 2000 lines. For files >500 LOC, use offset and limit to read in chunks.
 - Tool results over 50K chars get truncated to a 2KB preview. If results look suspiciously small, re-run with narrower scope or read the source directly.
 
@@ -72,7 +73,7 @@ Canonical skills under `core-rules/skills/<name>/`. Inherited by every project v
 
 - `CLAUDE.md` — project-specific rules only. No duplication of this file. Target <5 KB.
 - `gotchas.md` — lessons logged as they happen.
-- `context-log.md` — maintained by the `save-context-log` hook.
+- `context-log.md` — maintained by the `save-context-log` hook on every `PreCompact` (Claude Code) / `Stop` (Codex). Stored at the canonical project root so it survives worktree cleanup. Auto-injected at session start by `session-context` and after compaction by `post-compact-context`. Never edit by hand.
 
 ## Control plane
 

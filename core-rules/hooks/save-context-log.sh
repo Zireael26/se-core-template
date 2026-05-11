@@ -4,9 +4,12 @@
 #
 # Contract:
 #   - Runs on PreCompact.
-#   - Writes (overwrites) context-log.md in the project root with:
+#   - Writes (overwrites) context-log.md at the canonical project root with:
 #     branch, files touched this session, open todos, last two user asks,
 #     last two assistant decisions.
+#   - Storage path is resolved via `git rev-parse --git-common-dir` so the
+#     log lives in the main checkout even when Claude is operating inside a
+#     worktree. Worktree cleanup no longer destroys the log.
 #   - Side effect is the file write. No stdout needed. Never blocks.
 #
 # Dependencies: jq (required), git (optional).
@@ -42,7 +45,11 @@ if [ -n "$TRANSCRIPT" ] && [ ! -f "$TRANSCRIPT" ]; then
   exit 1
 fi
 
-OUT="${PROJECT_DIR}/context-log.md"
+# Resolve to the canonical repo root — survives worktree cleanup. Falls back
+# to PROJECT_DIR outside a git repo (no worktree concern there).
+REPO_ROOT=$(_se_repo_root "$PROJECT_DIR")
+
+OUT="${REPO_ROOT}/context-log.md"
 
 {
   printf '# Context log\n'

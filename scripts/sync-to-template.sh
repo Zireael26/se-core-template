@@ -54,6 +54,7 @@ done
 # Files / dirs to sync from live → template
 SYNC_PATHS=(
   "engineering-process.md"
+  "AGENT_ONBOARD_PROJECT.md"
   "core-rules/CLAUDE.md"
   "core-rules/AGENTS.md"
   "core-rules/codex/"

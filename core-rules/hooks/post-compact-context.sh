@@ -4,7 +4,9 @@
 #
 # Contract:
 #   - Runs only when SessionStart.source == "compact".
-#   - If context-log.md exists in the project root, emits it as additionalContext.
+#   - If context-log.md exists at the canonical project root (resolved via
+#     `git rev-parse --git-common-dir` so worktrees still find it), emits it
+#     as additionalContext.
 #   - Never blocks. Exit 0 always.
 #
 # Dependencies: jq (required).
@@ -28,7 +30,8 @@ if [ "$SOURCE" != "compact" ]; then
 fi
 
 PROJECT_DIR="${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
-LOG="${PROJECT_DIR}/context-log.md"
+REPO_ROOT=$(_se_repo_root "$PROJECT_DIR")
+LOG="${REPO_ROOT}/context-log.md"
 
 if [ ! -f "$LOG" ]; then
   exit 0
