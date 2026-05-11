@@ -20,6 +20,8 @@ You are about to clone this template and customize it for your own machine.
 >
 > **(B) Manual.** Follow [`SETUP.md`](SETUP.md) step by step. ~30 minutes, more sed.
 
+After SE Core is bootstrapped, **onboard projects** with the agent-driven flow in [`AGENT_ONBOARD_PROJECT.md`](AGENT_ONBOARD_PROJECT.md) — paste it into an agent open in your customized `se-core/` and it interviews you, runs `scripts/onboard-project.sh`, wires the project's `CLAUDE.md`, updates `registry.md`, and commits. Works for new projects, fresh clones of registered projects, and drift repair. Equivalent manual path: [`engineering-process.md` §10](engineering-process.md).
+
 ## Repo layout
 
 ```
