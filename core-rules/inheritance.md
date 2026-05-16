@@ -120,8 +120,10 @@ Codex project instructions are loaded from `AGENTS.md`; keep it as a symlink to 
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
 ```
+
+(The older `[features].codex_hooks` key still works as a deprecated alias but emits a warning on Codex CLI 0.129+. New installs should use `hooks`.)
 
 Tier 3 (husky / native git hooks) covers both harnesses identically.
 

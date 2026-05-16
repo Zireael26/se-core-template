@@ -13,27 +13,27 @@ Total time: ~30 minutes if you have one project to onboard, +5 minutes per addit
 - Node.js (only required if your projects use husky-managed git hooks)
 - A directory for your projects where each project is its own git repo
 - Claude Code and/or Codex installed
-- For Codex hooks: Codex CLI with hooks support and `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`
+- For Codex hooks: Codex CLI with hooks support and `[features] hooks = true` in `$CODEX_HOME/config.toml` (the older `codex_hooks` key is deprecated as of Codex CLI 0.129+)
 
 ---
 
 ## 1. Clone the template
 
-Pick a stable home for SE Core. Convention is alongside your projects directory:
+Pick a stable home for Trellis. Convention is alongside your projects directory:
 
 ```bash
 mkdir -p /path/to/workspace
 cd /path/to/workspace
-git clone https://github.com/<template-owner>/se-core-template.git se-core
-cd se-core
+git clone https://github.com/Zireael26/trellis.git trellis-instance
+cd trellis-instance
 ```
 
-> **Why "se-core" not "se-core-template"?** Once cloned and customized, this *is* your live SE Core control plane — drop the `-template` suffix.
+> **Why "trellis-instance" not "trellis"?** Once cloned and customized, this *is* your live Trellis control plane — disambiguate from the upstream template by adding the `-instance` suffix.
 
 If you want the customized result on your own GitHub, point the remote at your own repo (create an empty private one first, then):
 
 ```bash
-git remote set-url origin git@github.com:<YOUR-USER>/se-core.git
+git remote set-url origin git@github.com:<YOUR-USER>/trellis-instance.git
 ```
 
 ---
@@ -44,7 +44,7 @@ Open a scratch buffer and write down:
 
 | Placeholder            | Your value                                            |
 |------------------------|-------------------------------------------------------|
-| `__SE_CORE_PATH__`     | Absolute path to the cloned repo (no trailing slash) |
+| `__TRELLIS_PATH__`     | Absolute path to the cloned repo (no trailing slash) |
 | `__PROJECTS_ROOT__`    | Absolute path to the parent dir of your projects     |
 | `__MAINTAINER_NAME__`  | Your name                                            |
 | `__GITHUB_USER__`      | Your GitHub username                                 |
@@ -53,7 +53,7 @@ Open a scratch buffer and write down:
 Example for a user named "Jane Doe":
 
 ```
-__SE_CORE_PATH__    = /path/to/workspace/se-core
+__TRELLIS_PATH__    = /path/to/workspace/trellis-instance
 __PROJECTS_ROOT__   = /path/to/workspace/projects
 __MAINTAINER_NAME__ = Jane Doe
 __GITHUB_USER__     = janedoe
@@ -64,10 +64,10 @@ __USER_HOME__       = /home/jane
 
 ## 3. Substitute placeholders across the repo
 
-From the `se-core` root, run a sed pass for each placeholder. The exclusion list keeps `.git/`, `LICENSE`, `README.md`, `SETUP.md`, and `AGENT_SETUP.md` from being touched (they reference the placeholders by literal name as documentation).
+From the `trellis-instance` root, run a sed pass for each placeholder. The exclusion list keeps `.git/`, `LICENSE`, `README.md`, `SETUP.md`, and `AGENT_SETUP.md` from being touched (they reference the placeholders by literal name as documentation).
 
 ```bash
-SE_CORE_PATH="/path/to/workspace/se-core"            # <-- edit
+TRELLIS_PATH="/path/to/workspace/trellis-instance"    # <-- edit
 PROJECTS_ROOT="/path/to/workspace/projects"          # <-- edit
 MAINTAINER_NAME="Jane Doe"                           # <-- edit
 GITHUB_USER="janedoe"                                # <-- edit
@@ -81,7 +81,7 @@ find . -type f \
   ! -path './.git/*' \
   ! -name LICENSE ! -name README.md ! -name SETUP.md ! -name AGENT_SETUP.md \
   -exec sed "${SED_INPLACE[@]}" \
-    -e "s|__SE_CORE_PATH__|$SE_CORE_PATH|g" \
+    -e "s|__TRELLIS_PATH__|$TRELLIS_PATH|g" \
     -e "s|__PROJECTS_ROOT__|$PROJECTS_ROOT|g" \
     -e "s|__MAINTAINER_NAME__|$MAINTAINER_NAME|g" \
     -e "s|__GITHUB_USER__|$GITHUB_USER|g" \
@@ -92,7 +92,7 @@ find . -type f \
 **Verify:** no leftover placeholders should remain in source files.
 
 ```bash
-grep -rn "__SE_CORE_PATH__\|__PROJECTS_ROOT__\|__MAINTAINER_NAME__\|__GITHUB_USER__\|__USER_HOME__" . \
+grep -rn "__TRELLIS_PATH__\|__PROJECTS_ROOT__\|__MAINTAINER_NAME__\|__GITHUB_USER__\|__USER_HOME__" . \
   --exclude-dir=.git --exclude=LICENSE --exclude=README.md --exclude=SETUP.md --exclude=AGENT_SETUP.md
 # (should print nothing)
 ```
@@ -107,15 +107,15 @@ The template defaults to both Claude Code and Codex:
 "harnesses": ["claude", "codex"]
 ```
 
-Codex-enabled onboarding seeds root `AGENTS.md`, `.agents/rules/se-core.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh`.
+Codex-enabled onboarding seeds root `AGENTS.md`, `.agents/rules/trellis.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh`.
 
-If you intentionally use only one harness, remove the unused entry from `se-core.config.json`.
+If you intentionally use only one harness, remove the unused entry from `trellis.config.json`.
 
 For Codex hooks, also confirm your user config has:
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
 ```
 
 ---
@@ -134,7 +134,7 @@ Read the script's "Next steps" output carefully — it asks you to:
 2. If Codex is enabled, review `AGENTS.md`, `.agents/`, and `.codex/`.
 3. `git add` the new files inside the project.
 4. Run `pnpm install` / `bun install` / `npm install` so husky activates.
-5. Add a row to `registry.md` here in `se-core/`.
+5. Add a row to `registry.md` here in `trellis-instance/`.
 
 With the default `harnesses: ["claude", "codex"]`, onboarding also seeds Codex support: a root `AGENTS.md` entrypoint when safe plus `.agents/rules/` and `.agents/skills/` symlinks. After onboarding 1–3 projects, you'll see the system pay off — the `cross-project-process-audit` will start surfacing real findings.
 
@@ -151,11 +151,11 @@ You don't have to enable any of them on day one. They become useful once you hav
 
 ---
 
-## 7. Commit and push your customized SE Core
+## 7. Commit and push your customized Trellis
 
 ```bash
 git add -A
-git commit -m "chore: bootstrap SE Core for $USER"
+git commit -m "chore: bootstrap Trellis for $USER"
 git push
 ```
 

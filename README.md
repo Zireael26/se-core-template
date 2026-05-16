@@ -184,7 +184,7 @@ Five placeholders. Setup replaces them in-place.
 - **macOS or Linux** with `bash`, `git`, and `jq` on `PATH`. Hooks degrade gracefully if `jq` is missing.
 - **Node.js** for projects using husky. (For Unity / Rust / Go / Python-only projects, see [`core-rules/inheritance.md`](core-rules/inheritance.md) → "Native git hooks".)
 - **Claude Code and/or Codex.** Default config enables both. Remove either from `trellis.config.json` if you don't use it.
-- **Codex hooks opt-in** requires Codex CLI with hooks support and `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`.
+- **Codex hooks opt-in** requires Codex CLI with hooks support and `[features] hooks = true` in `$CODEX_HOME/config.toml` (the older `codex_hooks` key is deprecated as of Codex CLI 0.129+).
 
 ---
 

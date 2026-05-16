@@ -1,6 +1,6 @@
 # Project registry
 
-Projects under the Software Engineering Core process regime. Opt-in list. A project is "active" for process purposes if and only if it appears here and is **not** listed in `blacklist.md`.
+Projects under the Trellis process regime. Opt-in list. A project is "active" for process purposes if and only if it appears here and is **not** listed in `blacklist.md`.
 
 Centralized scheduled tasks (see `scheduled-tasks/`) default to iterating over this list.
 
@@ -35,7 +35,7 @@ Everything else under your personal projects root is outside this regime. Reason
 Full playbook: [`engineering-process.md` §10](engineering-process.md#10-onboarding-a-new-project-full-playbook). That is the single source of truth for onboarding steps — keep them there, not here. Registry-local steps only:
 
 1. Add a row to the "Active projects" table above with `Path` and `Class`.
-2. Commit in `se-core/` with `chore: register <name>`.
+2. Commit in `trellis-instance/` with `chore: register <name>`.
 3. Next scheduled audit run will include the project automatically.
 
 ## How to remove a project

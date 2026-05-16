@@ -16,7 +16,7 @@ Projects listed in `registry.md` that should be **temporarily** excluded from ce
 
 ## 2. Permanently excluded from management
 
-Git repos under `__PROJECTS_ROOT__/` that should **never** be onboarded to SE Core. Scheduled tasks that scan the filesystem skip these paths — no findings, no weekly re-surfacing.
+Git repos under `__PROJECTS_ROOT__/` that should **never** be onboarded to Trellis. Scheduled tasks that scan the filesystem skip these paths — no findings, no weekly re-surfacing.
 
 If any row becomes an active project, move it to `registry.md` (step 1 of onboarding).
 

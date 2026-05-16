@@ -97,7 +97,7 @@ Use whatever clarification mechanism your tooling provides (multi-choice questio
   ```
   Show the result and let the user override. The script writes this into `.claude/skills/process-gate-local/local.config.sh` as `PROCESS_GATE_STACK_PROFILE`.
 - **`GitHub repo URL`** — for the registry row's notes column. If the user hasn't created a remote yet, that's fine; capture nothing and remind them at the end.
-- **`Codex acknowledgement`** — if `harnesses` in `trellis.config.json` includes `"codex"`, remind the user that Codex hooks require `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`. Don't ask whether to enable Codex — that's a global config choice already made.
+- **`Codex acknowledgement`** — if `harnesses` in `trellis.config.json` includes `"codex"`, remind the user that Codex hooks require `[features] hooks = true` in `$CODEX_HOME/config.toml` (the older `codex_hooks` key is deprecated as of Codex CLI 0.129+). Don't ask whether to enable Codex — that's a global config choice already made.
 
 Echo all collected values back as a table. Wait for explicit "yes" before continuing.
 
@@ -250,7 +250,7 @@ Three short blocks, in order:
    - Push the project commit and (mode `new`) the Trellis-repo commit when ready.
    - If GitHub repo doesn't exist yet, create it and enable branch protection on `main` (see `engineering-process.md` §10.2 step 14).
    - If `package.json` exists, run `pnpm install` / `bun install` / `npm install` so husky activates `core.hooksPath`.
-   - If Codex is enabled, confirm `$CODEX_HOME/config.toml` has `[features] codex_hooks = true`.
+   - If Codex is enabled, confirm `$CODEX_HOME/config.toml` has `[features] hooks = true` (the older `codex_hooks` key still works but is deprecated as of Codex CLI 0.129+).
    - If the project is Unity / Rust / Go / Python-only, set up `.githooks/` per `core-rules/inheritance.md` "Native git hooks".
 3. **What runs automatically.** The fleet picks up the new project on its next schedule: `cross-project-process-audit` (Mon 10:00), `parent-hook-drift` (Sun 21:00), `registry-blacklist-health` (Mon 10:30). Offer to trigger any of them now via `mcp__scheduled-tasks__*` if available.
 

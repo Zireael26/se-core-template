@@ -1,6 +1,6 @@
 # Provenance & attribution
 
-This template is a redacted snapshot of an active SE Core deployment, packaged for re-use.
+This template is a redacted snapshot of an active Trellis deployment, packaged for re-use. (The framework was renamed from "SE Core" to "Trellis" on 2026-05-12; this document and the lineage diagram below preserve the historical name where it refers to pre-rename artefacts.)
 
 ## Lineage
 
@@ -10,7 +10,7 @@ github.com/iamfakeguru/claude-md   (MIT)
         │   Seed: block-destructive, post-edit-verify, stop-verify, truncation-check
         │   hooks. Two-tier hook architecture concept.
         ▼
-SE Core (live)                     (private source repository)
+Trellis instance (live)            (private source repository; pre-2026-05-12 name: "SE Core")
         │
         │   Extensions: three-tier hook architecture (fast-local + heavy-gated + git-boundary),
         │   stop-verify TodoWrite guard, code-review-subagent + ui-verify hook skeletons,
@@ -21,10 +21,10 @@ SE Core (live)                     (private source repository)
         │   mechanism (`.claude/rules/` symlink as primary, `@`-import as fallback),
         │   Rule-of-Three discipline with `core-rules/deferred.md`.
         ▼
-SE Core Template                   (this repo)
+Trellis (this repo)                (public framework; pre-2026-05-12 name: "SE Core Template")
         │
         │   Same structure, redacted: project names replaced with `project-a..f`,
-        │   absolute paths replaced with `__SE_CORE_PATH__` / `__PROJECTS_ROOT__`
+        │   absolute paths replaced with `__TRELLIS_PATH__` / `__PROJECTS_ROOT__`
         │   placeholders, real audit history reduced to four representative examples
         │   under `examples/audits/`.
         ▼
@@ -44,7 +44,7 @@ The following hook scripts under `core-rules/hooks/` carry "upstream" or "upstre
 
 - Three-tier hook architecture (`core-rules/hooks.md`)
 - `code-review-subagent.sh` + `ui-verify.sh` hook skeletons (no upstream equivalents)
-- Inheritance mechanism: `.claude/rules/se-core.md` symlink as load-bearing primary, `@`-import as interactive fallback (`core-rules/inheritance.md`)
+- Inheritance mechanism: `.claude/rules/trellis.md` symlink as load-bearing primary, `@`-import as interactive fallback (`core-rules/inheritance.md`)
 - The whole `scheduled-tasks/` stack (10 Tier-1 tasks + 2 Tier-2 drafts)
 - Rule of Three / `core-rules/deferred.md` discipline
 - `engineering-process.md` narrative manual

@@ -220,7 +220,7 @@ Tier 1 and 2 are harness hook events. Claude Code and Codex use separate JSON en
 
 Claude implementations are version-controlled at `core-rules/hooks/`. Projects deploy by copying into `.claude/hooks/` and wiring into `.claude/settings.json` using `$CLAUDE_PROJECT_DIR` paths.
 
-Codex implementations are version-controlled at `core-rules/codex/`. Projects deploy by copying `hooks.json` and `hooks/*.sh` into `.codex/`; scripts resolve the project via `$CODEX_PROJECT_DIR` with `$CLAUDE_PROJECT_DIR` as a fallback. Codex hooks require `[features] codex_hooks = true` in `$CODEX_HOME/config.toml`.
+Codex implementations are version-controlled at `core-rules/codex/`. Projects deploy by copying `hooks.json` and `hooks/*.sh` into `.codex/`; scripts resolve the project via `$CODEX_PROJECT_DIR` with `$CLAUDE_PROJECT_DIR` as a fallback. Codex hooks require `[features] hooks = true` in `$CODEX_HOME/config.toml` (the older `codex_hooks` key still works as a deprecated alias on Codex CLI 0.129+).
 
 ### 5b. Skills layer
 
@@ -594,7 +594,7 @@ git push -u origin main
 - [ ] `.gitignore` includes the Trellis symlink fragment (`.claude/rules/trellis.md`, `.claude/skills/process-gate`, `.agents/rules/trellis.md`, `.agents/skills/process-gate`) plus `context-log.md` and `.claude/settings.local.json`.
 - [ ] `git ls-files .claude/rules/trellis.md .claude/skills/process-gate` returns nothing — the absolute-path symlinks are NOT staged for the initial commit.
 - [ ] If Codex-enabled: `AGENTS.md`, `.agents/rules/trellis.md`, `.agents/skills/process-gate`, `.agents/skills/process-gate-local/local.config.sh`, `.codex/hooks.json`, and `.codex/hooks/*.sh` are present.
-- [ ] If Codex-enabled: `$CODEX_HOME/config.toml` has `[features] codex_hooks = true`.
+- [ ] If Codex-enabled: `$CODEX_HOME/config.toml` has `[features] hooks = true` (or the legacy `codex_hooks = true` alias; deprecated as of Codex CLI 0.129+).
 - [ ] `registry.md` has a row for the new project.
 - [ ] Branch protection enabled on `main`.
 

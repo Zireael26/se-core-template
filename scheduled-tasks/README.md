@@ -98,7 +98,7 @@ the registry. They continue to run in parallel:
 |---|---|---|
 | `weekly-process-health-check` | Mon 09:00 | Neev EPM gaps, risk register, tech debt. |
 | `sprint-boundary-review` | Fri 09:00 (biweekly) | Neev Definition-of-Done audit, sprint summary. |
-| `monthly-documentation-audit` | 1st 09:00 | Neev EPM currency, missing ADRs, Obsidian sync. |
+| `monthly-documentation-audit` | 1st 09:00 | Neev EPM currency, missing ADRs. |
 
 If any of their concerns generalize beyond Neev — i.e., we find ourselves
 wanting the same check on another project — lift them into this directory

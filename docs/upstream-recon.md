@@ -1,6 +1,6 @@
 # Recon: upstream extraction catalog
 
-> **Template note.** This is the methodology document from the original SE Core extraction — preserved here as a reference for *how* the parent rules were derived (Rule of Three, evidence per item, LIFT/LEAVE/DEFER bucketing). Project names in the original were two real projects ("Project-A", "Project-B" below); they're just placeholders now. When you re-run a similar pass against your own projects, you'll fork this file or write a new one.
+> **Template note.** This is the methodology document from the original Trellis extraction (the framework was named SE Core prior to 2026-05-12) — preserved here as a reference for *how* the parent rules were derived (Rule of Three, evidence per item, LIFT/LEAVE/DEFER bucketing). Project names in the original were two real projects ("Project-A", "Project-B" below); they're just placeholders now. When you re-run a similar pass against your own projects, you'll fork this file or write a new one.
 
 ---
 
