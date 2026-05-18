@@ -81,6 +81,29 @@
     },
     "sed_flavor": {
       "enum": ["auto", "gnu", "bsd"]
+    },
+    "approved_mcps": {
+      "description": "Optional. Allowlist of MCP server names sanctioned for use across registered projects. Today this is documentation only — projects MAY connect MCPs not listed here. A future audit (mcp-drift) is reserved to warn when a project's .mcp.json references an unapproved server. Names match the server name as exposed to the harness (e.g., the prefix before '__' in mcp__<server>__<tool>). Examples: 'scheduled-tasks' (Trellis audits), 'computer-use', 'claude-in-chrome', 'Vercel', 'Cloudflare', 'obsidian'.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "scope": {
+            "description": "'fleet' = enabled across all registered projects; 'per-project' = only where the project explicitly opts in.",
+            "enum": ["fleet", "per-project"]
+          }
+        },
+        "additionalProperties": true
+      },
+      "uniqueItems": true
     }
   },
   "additionalProperties": true

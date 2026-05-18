@@ -20,12 +20,14 @@ prompt can be edited here in version control without reregistering the task.
 
 ## Tier 1 — registered and running
 
-Ten centralized tasks cover: hook compliance, process bypasses, test health,
+Fifteen centralized tasks cover: morning per-project digest, hook compliance, process bypasses, test health,
 control-plane hygiene, pattern rollup, executive summary, dependency posture
-(security, currency, major-version watch), and fleet-wide security baseline.
+(security, currency, major-version watch), fleet-wide security baseline, and
+quarterly obsolete-rules pruning.
 
 | Task | Cadence | Cron (local) | Purpose |
 |---|---|---|---|
+| `daily-project-digest` | Daily | `0 8 * * *` (every day 08:00) | Per-project morning status — branch, last commit, 7d activity, open audit hits, suggested next move. Always emits a report (no silent days). |
 | `cross-project-process-audit` | Weekly | `0 10 * * 1` (Mon 10:00) | Compliance snapshot — hook presence, staleness, required files. |
 | `registry-blacklist-health` | Weekly | `30 10 * * 1` (Mon 10:30) | Audits registry ↔ filesystem ↔ blacklist consistency. |
 | `test-health` | Weekly | `0 11 * * 1` (Mon 11:00) | Runs each project's fast test suite; bisects for last-green on red. |
@@ -39,9 +41,16 @@ control-plane hygiene, pattern rollup, executive summary, dependency posture
 | `audit-report-rollup` | Monthly | `0 10 1 * *` (1st 10:00) | Month-over-month trend report across all other audits. |
 | `dep-major-upgrade-watch` | Monthly | `0 11 1 * *` (1st 11:00) | Curated framework-tier (Next, React, TS, Node…) drift vs. watchlist targets. |
 | `security-baseline` | Quarterly | `0 5 1 1,4,7,10 *` (Q1/Q2/Q3/Q4 1st 05:00) | Mode 1 fleet-wide security baseline (semgrep + osv-scanner + gitleaks). Host-pinned. Rewrites per-project baseline JSON; diff scans dedupe against newest. |
+| `obsolete-rules` | Quarterly | `0 9 1 1,4,7,10 *` (Q1/Q2/Q3/Q4 1st 09:00) | Walks the rules corpus, flags model- or harness-compensating rules that have aged out of usefulness. Removal-only audit — never proposes additions. Also triggered on demand after major model launches. |
 
 **Ordering rationale:**
 
+- `daily-project-digest` fires at 08:00 every day (weekends included). It is
+  the user's morning anchor — a per-project status digest, not an audit. It
+  reads audit reports from the last 7 days, so it does not depend on the
+  same day's `bypass-tripwire` (08:00 weekdays) or `dep-vulnerabilities`
+  (08:30 weekdays) having completed first. Independence by design keeps the
+  digest predictable even if the weekday audits run late or skip.
 - Monday morning runs in strict sequence so downstream tasks see a verified
   target list: `cross-project-process-audit` (10:00) →
   `registry-blacklist-health` (10:30) → `test-health` (11:00) →

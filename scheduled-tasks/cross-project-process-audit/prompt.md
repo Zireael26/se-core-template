@@ -114,6 +114,22 @@ If parent `__TRELLIS_PATH__/trellis.config.json` includes `"codex"` in `harnesse
 
 Missing `AGENTS.md`, `.agents/rules`, `.agents/skills/process-gate`, or `.codex/hooks.json` is **critical** because Codex sessions will run without the parent layer or without hook enforcement. Missing local config or non-executable Codex hook scripts are **warning**.
 
+### 10. Codebase map (when warranted)
+
+Projects with **≥ 5 top-level directories** (excluding dotfiles and any path matched by canonical `permissions.deny` entries: `node_modules`, `.next`, `dist`, `build`, `out`, `target`, `vendor`, `.venv`, `venv`, `coverage`, `.turbo`, `.cache`) MUST carry a `## Codebase map` heading in their root `CLAUDE.md`. The section is one line per top-level directory describing its role.
+
+Procedure:
+
+- Count top-level dirs in the project root, filtering as above. Use `ls -d <project>/*/ | grep -Ev '/(node_modules|\.next|dist|build|out|target|vendor|\.venv|venv|coverage|\.turbo|\.cache)/$' | wc -l`.
+- If the count is **< 5**, the section is optional — emit no finding.
+- If the count is **≥ 5** and the project `CLAUDE.md` has no `## Codebase map` heading (case-insensitive, allowing hyphen or space variants): **warning**: `codebase-map missing` → suggest the user run `/primer <project>` or hand-write the section per `engineering-process.md` §9.1.
+- If the heading exists but the bullet list is empty / placeholder text: **info**: `codebase-map stub-only`.
+- If the heading exists but its directory entries reference paths that no longer exist on disk: **warning**: `codebase-map stale` → list the offending entries.
+
+Skip this check entirely if `<project>/CLAUDE.md` is missing — §5 already covers that.
+
+Rationale: large repos pay a per-session exploration cost the agent does not need to pay every time. A five-line map saves the round trip. The rule lives in `engineering-process.md` §9.1; this check enforces it.
+
 ## Output format
 
 Write a single compliance report to `__TRELLIS_PATH__/audits/YYYY-MM-DD-cross-project-process-audit.md` (create the `audits/` directory if missing). Structure:

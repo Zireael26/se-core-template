@@ -278,7 +278,7 @@ seed_husky_hook() {
 ensure_gitignore_fragment() {
   local fragment="$TEMPLATES/project.gitignore.fragment"
   local gi="$PROJECT/.gitignore"
-  local current_sentinel="Trellis inheritance symlinks (7-skill set + presets + primer commands)"
+  local current_sentinel="Trellis inheritance symlinks (7-skill set + presets + primer/explore commands)"
   local any_legacy_marker="Trellis inheritance symlinks"
   local had_any_legacy=false
 
@@ -343,6 +343,7 @@ untrack_if_tracked ".claude/skills/analyze"
 untrack_if_tracked ".claude/commands/primer.md"
 untrack_if_tracked ".claude/commands/primer-refresh.md"
 untrack_if_tracked ".claude/commands/primer-check.md"
+untrack_if_tracked ".claude/commands/explore.md"
 untrack_if_tracked ".agents/rules/trellis.md"
 untrack_if_tracked ".agents/skills/process-gate"
 untrack_if_tracked ".agents/skills/security-gate"
@@ -354,6 +355,7 @@ untrack_if_tracked ".agents/skills/analyze"
 untrack_if_tracked ".agents/commands/primer.md"
 untrack_if_tracked ".agents/commands/primer-refresh.md"
 untrack_if_tracked ".agents/commands/primer-check.md"
+untrack_if_tracked ".agents/commands/explore.md"
 
 # Claude Code inheritance: rules + skills + hooks.
 # Canonical skills shipped today: process-gate, security-gate (always on),
@@ -377,6 +379,7 @@ seed_symlink "$CANONICAL_SKILLS_DIR/analyze"          "$PROJECT/.claude/skills/a
 seed_symlink "$CANONICAL_COMMANDS_DIR/primer.md"          "$PROJECT/.claude/commands/primer.md"
 seed_symlink "$CANONICAL_COMMANDS_DIR/primer-refresh.md"  "$PROJECT/.claude/commands/primer-refresh.md"
 seed_symlink "$CANONICAL_COMMANDS_DIR/primer-check.md"    "$PROJECT/.claude/commands/primer-check.md"
+seed_symlink "$CANONICAL_COMMANDS_DIR/explore.md"         "$PROJECT/.claude/commands/explore.md"
 
 # Primer INDEX — opt-in feature primer system. INDEX is project-state (copied,
 # not symlinked) so each project owns its primer list. Empty INDEX = "primers
@@ -412,6 +415,7 @@ if pg_has_harness codex; then
   seed_symlink "$CANONICAL_COMMANDS_DIR/primer.md"         "$PROJECT/.agents/commands/primer.md"
   seed_symlink "$CANONICAL_COMMANDS_DIR/primer-refresh.md" "$PROJECT/.agents/commands/primer-refresh.md"
   seed_symlink "$CANONICAL_COMMANDS_DIR/primer-check.md"   "$PROJECT/.agents/commands/primer-check.md"
+  seed_symlink "$CANONICAL_COMMANDS_DIR/explore.md"        "$PROJECT/.agents/commands/explore.md"
   seed_file    "$CANONICAL_PRIMER_INDEX_TEMPLATE"          "$PROJECT/.agents/primers/INDEX.md"
   if [ -f "$PROJECT/.claude/skills/process-gate-local/local.config.sh" ] && [ ! -f "$PROJECT/.agents/skills/process-gate-local/local.config.sh" ]; then
     mkdir -p "$PROJECT/.agents/skills/process-gate-local"

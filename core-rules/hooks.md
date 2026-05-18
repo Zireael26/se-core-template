@@ -88,6 +88,7 @@ Goal: catch "claims done but isn't" before the turn ends. Runs exactly once per 
 - **Return on block:** `{ "decision": "block", "reason": "<step name>: <sliced output>" }`
 - **Return on pass:** exit 0, no output
 - **Budget:** 90s soft cap. If typecheck+lint+test exceeds this, split — move tests to CI-only and document in project `hooks.md`.
+- **Subtree scoping:** if every changed file in the turn sits under one subdirectory that carries its own manifest (`package.json`, `go.mod`, `pyproject.toml`, or `Cargo.toml`), the hook `cd`s into that subtree before steps 2-4. Cuts wall time + noise on monorepos. Mixed-subtree changes fall back to repo root. Escape hatch: `PROCESS_GATE_FORCE_ROOT=1` always runs at root.
 
 ### code-review-subagent
 - **Event:** `Stop`
@@ -111,6 +112,15 @@ Goal: catch "claims done but isn't" before the turn ends. Runs exactly once per 
 - **Block condition:** dev server fails to start, OR screenshot path is empty, OR Claude claimed a UI change without running this hook
 - **Return on block:** `{ "decision": "block", "reason": "UI-visible change requires visual verification. <specific failure>" }`
 - **Design choice (parked for Phase 2):** fallback policy — do we require computer-use when available and only fall back to Playwright if the user's browser is unreachable, or always prefer Playwright for determinism? Start with: prefer computer-use (matches the "verify what the user sees"), fall back to Playwright silently.
+
+### propose-rules (experimental, opt-in)
+- **Event:** `Stop`
+- **Status:** experimental. Not registered in the canonical `claude-settings.json` template. Projects opt in by adding the hook entry to their own `.claude/settings.json` AND setting `PROCESS_GATE_PROPOSE_RULES=1` in `.claude/hooks/config.sh`. Script is canonical and synced via `sync-hooks.sh`; activation is per-project.
+- **Guard:** opt-in gate first (silent exit), then `$stop_hook_active`, then dirty-tree skip (pure chat → exit), then a cheap heuristic on the transcript tail looking for explicit-correction signals ("no", "don't", "actually", "stop doing", "that's wrong", "never do"). The subagent only fires when at least one signal is present in the last ~200 transcript lines.
+- **Mechanism:** dispatches a one-shot `claude -p --max-turns 1` subagent that reads the transcript tail + the project's `gotchas.md` and proposes ONE candidate gotchas entry, or emits the literal string `NONE`. The proposal is returned as `additionalContext`; this hook never blocks.
+- **Budget:** 30s soft cap (timeout on the `claude` invocation).
+- **Why opt-in:** every fire costs tokens. Projects that log lessons regularly (Neev, TGSC) get value; throwaway projects don't. Out-of-the-box this hook is silent. Promote out of "experimental" once at least two projects have run it for a month without false positives.
+- **Pairs with:** `gotchas-rollup` (monthly) — propose-rules surfaces n=1 candidates per turn; gotchas-rollup clusters n≥3 candidates into parent-rule promotions.
 
 ---
 

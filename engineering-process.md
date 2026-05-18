@@ -121,7 +121,16 @@ Single file capturing the customizations of THIS clone of Trellis. Bootstrapped 
     "branch": "main",
     "redact_paths": ["audits/", "blacklist.md", "registry.md"]
   },
-  "sed_flavor": "auto"                  // auto | gnu | bsd
+  "sed_flavor": "auto",                 // auto | gnu | bsd
+
+  // Optional. Allowlist of MCP servers sanctioned across this clone. Today
+  // documentation-only — nothing breaks if a project connects something else.
+  // The reserved mcp-drift audit (parked) will warn on unapproved servers.
+  "approved_mcps": [
+    { "name": "scheduled-tasks",  "purpose": "Trellis weekly + quarterly audits", "scope": "fleet" },
+    { "name": "computer-use",     "purpose": "Native-app screenshots + UI control", "scope": "fleet" },
+    { "name": "claude-in-chrome", "purpose": "Browser navigation + DOM-aware actions", "scope": "fleet" }
+  ]
 }
 ```
 
@@ -273,6 +282,14 @@ Claude Code is the primary harness. Codex is the secondary. Different layers cov
 
 Projects opt into Codex by setting `harnesses: ["claude", "codex"]` in `trellis.config.json` (see §3 control plane). The public template defaults to `["claude"]`; this live control plane runs both.
 
+### 5.6 Token-noise filter (`permissions.deny`)
+
+The canonical settings template ships a `permissions.deny` block that blocks the agent from reading generated files, build artifacts, vendored dependencies, and lockfiles. Same payload across every project: `node_modules/`, `.next/`, `dist/`, `build/`, `out/`, `target/`, `vendor/`, `.venv/`, `__pycache__/`, every cache dir, every lockfile. New projects pick it up automatically through `onboard-project.sh`. Existing projects converge via `scripts/rollout-settings.sh` — idempotent jq merge that preserves project-local additions and only ever adds entries, never deletes.
+
+Why it matters: every read of `node_modules/` is wasted context, and the agent has no business reading lockfiles unless explicitly asked. The deny block is the cheapest single change that reduces token spend per session.
+
+Project-local additions go in the same `.permissions.deny` array; the rollout script unions canonical + local and dedupes. To deny something only in one project (e.g. `Read(./data/embeddings/**)` for a project with on-disk vectors), add it to `<project>/.claude/settings.json` and run the rollout — your entry survives.
+
 ---
 
 ## 6. Git workflow
@@ -372,6 +389,17 @@ Full expression in `core-rules/CLAUDE.md`. Summary:
 - If you notice context degradation (referencing nonexistent variables, forgetting file structure), run `/compact` proactively. `save-context-log` captures state to `context-log.md`.
 - Reads are capped at 2000 lines. For files >500 LOC, use offset/limit chunks.
 - Tool results over 50K chars truncate to a 2KB preview. Re-run narrower or read the source directly.
+- Before touching an unfamiliar subsystem, run `/explore <subsystem>` to dispatch a read-only subagent that writes a compact map to `.claude/primers/_explore/`. Editing without that map on a sufficiently-large unfamiliar subsystem produces wrong-shaped changes. Promote to a durable `/primer` post-edit if the subsystem is stable enough to warrant it.
+
+#### Language server integration (polyglot projects)
+
+For projects spanning two or more languages (typical: Go + TypeScript + Python in one monorepo), install a Claude Code language-server plugin so symbol-level navigation beats string-grep at locating identifiers, finding call sites, and following types across files. Recommended order:
+
+1. Install the per-language LSP binary on `PATH` — `gopls`, `typescript-language-server`, `pyright`, `rust-analyzer`, etc.
+2. Install a Claude Code LSP plugin that wraps these binaries and exposes symbol-lookup / find-references tools to the agent.
+3. Verify with one targeted prompt — e.g., "find every call site of `loadConfig` and tell me their types" — and confirm the agent uses LSP rather than ripgrep.
+
+LSP is a recommendation, not a Trellis requirement: single-language repos derive less value, and the cost is one binary per language plus one plugin install. The win shows up most clearly on polyglot monorepos where the same identifier ("config", "handler", "Process") exists in three different languages — string-grep returns 40 false positives; symbol lookup returns the right one. Trellis does not enforce installation; it just calls out the gap.
 
 ### 8.4 Style
 
@@ -418,6 +446,18 @@ Each registered project has a `CLAUDE.md` at its root. Structure:
 ## Architecture
 <high-level shape: monorepo packages, services, main modules>
 
+## Codebase map
+<REQUIRED when the project has ≥ 5 top-level directories. One line per
+top-level dir, ordered by importance. Format:
+`- \`<dir>/\` — <one-line role>`. Skip dirs that are already in
+permissions.deny (node_modules, .next, dist, etc.). Example:
+
+- `services/` — Go microservices (workspace, 5 modules)
+- `clients/web/` — Next.js frontend
+- `py/` — Python ML runners
+- `infra/` — Cloudflare + Vercel config
+- `docs/` — ADRs + onboarding>
+
 ## Project-specific rules
 <anything that doesn't belong in the parent — e.g., "never import @neev/orders from @neev/inventory">
 
@@ -429,6 +469,10 @@ Each registered project has a `CLAUDE.md` at its root. Structure:
 ```
 
 Target size: **< 5 KB**. Bloat pushes signal out of context. Long reference material goes in sibling files and gets linked.
+
+**Codebase map convention.** When a project has fewer than 5 top-level directories, the agent can keep them all in head from a single `ls`. Past that threshold the cost of re-discovering the tree on every fresh session adds up, so the `Codebase map` section becomes mandatory. The audit in §11 enforces this: `cross-project-process-audit` fails any registered project with ≥ 5 top-level directories whose `CLAUDE.md` lacks a `## Codebase map` heading.
+
+The format is deliberately bare: one line per directory, role only. The point is to save an exploration round-trip, not to mirror the README. If a directory needs more than a one-liner to introduce, write a sibling `docs/<dir>.md` and link to it from the map line.
 
 ### 9.2 README.md
 

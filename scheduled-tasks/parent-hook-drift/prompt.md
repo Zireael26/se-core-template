@@ -50,6 +50,17 @@ The project may have **additional** hooks beyond these — that's fine and
 expected (e.g., msme-neev has `check-module-boundary.sh`). Additional hooks
 are not checked by this task.
 
+**Experimental hooks (opt-in, no registration check):**
+
+| Hook | Event | Status |
+|---|---|---|
+| `propose-rules.sh` | Stop | opt-in via `PROCESS_GATE_PROPOSE_RULES=1` |
+
+Experimental hooks must still be **present and byte-identical** to canonical
+when copied (sync-hooks ships them automatically), but registration in
+`settings.json` is project-discretion. Absence of a settings.json entry for
+an experimental hook is **not** drift.
+
 ## Canonical Codex hook manifest
 
 When parent `trellis.config.json` includes `"codex"` in `harnesses`, each project must carry:

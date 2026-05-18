@@ -75,9 +75,11 @@ Two tiers — **fast-local** (every turn) and **heavy-gated** (wrap-up) — plus
 
 Canonical skills under `core-rules/skills/<name>/`, inherited by every project via symlink (Claude Code: `.claude/skills/`; Codex: `.agents/skills/`). Current canonical: **process-gate** — mandatory pre-PR gate. Spec: `core-rules/skills/process-gate/SKILL.md`.
 
+**Path-scoping (project-local skills only).** If a non-canonical skill carries a `scope.json` next to its `SKILL.md`, read it before auto-mentioning the skill. Only auto-invoke when the session cwd or this turn's changed files match at least one glob in `paths[]`. Explicit `/skill <name>` invocations always work regardless of scope. Schema + rationale: `core-rules/inheritance.md` § "Skill path-scoping".
+
 ## Commands
 
-Canonical slash commands under `core-rules/commands/<name>.md`, inherited by every project via symlink (Claude Code: `.claude/commands/`; Codex: `.agents/commands/`). Commands are explicit user invocations (`/<name> <args>`) — distinct from skills, which the agent dispatches based on context. Current canonical set: `primer`, `primer-refresh`, `primer-check` (feature primer system, see below).
+Canonical slash commands under `core-rules/commands/<name>.md`, inherited by every project via symlink (Claude Code: `.claude/commands/`; Codex: `.agents/commands/`). Commands are explicit user invocations (`/<name> <args>`) — distinct from skills, which the agent dispatches based on context. Current canonical set: `primer`, `primer-refresh`, `primer-check` (feature primer system, see below), and `explore` (read-only subagent maps an unfamiliar subsystem to a transient note before the editing session touches it).
 
 <!-- BEGIN PRIMER SECTION -->
 

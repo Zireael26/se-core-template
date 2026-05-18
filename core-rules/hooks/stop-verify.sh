@@ -10,6 +10,12 @@
 #   - Error slicing: typecheck/lint → first 30 lines; tests → last 30 lines.
 #   - Budget: 90s soft cap.
 #
+# Subtree scoping: when every changed file in this turn sits under a single
+# subdirectory that carries its own manifest (package.json, go.mod,
+# pyproject.toml, or Cargo.toml), checks run scoped to that subtree instead
+# of repo root. Cuts wall time + noise on monorepos. Escape hatch:
+# PROCESS_GATE_FORCE_ROOT=1 → always run at repo root (legacy behaviour).
+#
 # Dependencies: jq (required). Toolchains are detected; absence → skip that step.
 #
 # Todo state: read from $CLAUDE_PROJECT_DIR/.claude/todos.json. If missing or
@@ -21,6 +27,7 @@
 #   - Step 1: TodoWrite state check (receipts-required enforcement).
 #   - Go support (go vet / go test / golangci-lint).
 #   - Test output uses last-30 lines; lint/typecheck use first-30.
+#   - Subtree scoping (auto-detects nested manifests; PROCESS_GATE_FORCE_ROOT escape).
 
 set -u
 
@@ -48,6 +55,48 @@ emit_block() {
   local reason="${step}: ${output}"
   jq -nc --arg reason "$reason" '{decision: "block", reason: $reason}'
   exit 2
+}
+
+# _se_find_subtree — echo the deepest subtree (relative to PROJECT_DIR) that
+# contains every changed file in this turn AND carries its own manifest. Echo
+# nothing if changed files span multiple subtrees, none have a nested manifest,
+# or git isn't here. Quiet by design.
+_se_find_subtree() {
+  command -v git >/dev/null 2>&1 || return 0
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+
+  local file dir found common=""
+
+  while IFS= read -r file; do
+    [ -z "$file" ] && continue
+
+    dir="$(dirname "$file")"
+    found=""
+    # Walk up. Stop one level above the worktree root.
+    while [ -n "$dir" ] && [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+      if [ -f "$dir/package.json" ] || [ -f "$dir/go.mod" ] \
+         || [ -f "$dir/pyproject.toml" ] || [ -f "$dir/Cargo.toml" ]; then
+        found="$dir"
+        break
+      fi
+      dir="$(dirname "$dir")"
+    done
+
+    # File has no nested manifest above it → caller falls back to repo root.
+    [ -z "$found" ] && return 0
+
+    if [ -z "$common" ]; then
+      common="$found"
+    elif [ "$common" != "$found" ]; then
+      # Changed files span multiple subtrees → fall back to repo root.
+      return 0
+    fi
+  done < <(
+    { git diff --name-only HEAD 2>/dev/null; \
+      git ls-files --others --exclude-standard 2>/dev/null; } | sort -u
+  )
+
+  printf '%s' "$common"
 }
 
 # --- Step 1: TodoWrite check (runs before the dirty-tree skip — pure-chat turns
@@ -78,6 +127,16 @@ if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/n
   if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
     # Nothing changed this turn → treat as pure chat and skip checks.
     exit 0
+  fi
+fi
+
+# --- Subtree scoping. If every changed file shares one subtree with its own
+# manifest, run scoped checks there instead of repo-root. Opt-out:
+# PROCESS_GATE_FORCE_ROOT=1.
+if [ "${PROCESS_GATE_FORCE_ROOT:-0}" != "1" ]; then
+  SUBTREE="$(_se_find_subtree)"
+  if [ -n "$SUBTREE" ] && [ -d "$SUBTREE" ]; then
+    cd "$SUBTREE" 2>/dev/null || true
   fi
 fi
 

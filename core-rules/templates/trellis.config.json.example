@@ -18,5 +18,11 @@
     "branch": "main"
   },
 
-  "sed_flavor": "auto"
+  "sed_flavor": "auto",
+
+  "approved_mcps": [
+    { "name": "scheduled-tasks", "purpose": "Trellis weekly + quarterly audits", "scope": "fleet" },
+    { "name": "computer-use", "purpose": "Native-app screenshots + UI control for ui-verify fallback", "scope": "fleet" },
+    { "name": "claude-in-chrome", "purpose": "Browser navigation + DOM-aware actions", "scope": "fleet" }
+  ]
 }

@@ -149,6 +149,27 @@ Then handle the project's `CLAUDE.md`:
   ```
   Don't invent project-specific rules — that's for the user.
 
+**Codebase map check.** After handling the `@`-import, count top-level directories in the project (ignore dotfiles and anything matched by `permissions.deny`):
+
+```bash
+ls -d "$PROJECT"/*/ 2>/dev/null \
+  | grep -Ev '/(node_modules|\.next|dist|build|out|target|vendor|\.venv|venv|coverage|\.turbo|\.cache)/$' \
+  | wc -l
+```
+
+If the count is **≥ 5** and the project `CLAUDE.md` lacks a `## Codebase map` heading, prompt the user for a one-line description per top-level directory, then write a section in this shape (drop it directly under `## Architecture`, or create the section if missing):
+
+```markdown
+## Codebase map
+- `services/` — Go microservices (workspace, 5 modules)
+- `clients/web/` — Next.js frontend
+- `py/` — Python ML runners
+- `infra/` — Cloudflare + Vercel config
+- `docs/` — ADRs + onboarding
+```
+
+If the count is **< 5**, skip — the agent can keep them all in head from a single `ls` and the section would be noise. The scheduled `cross-project-process-audit` enforces the threshold so the rule stays mechanical, not aspirational.
+
 ### Step 5 — Update `registry.md` (mode `new` only)
 
 Append a row to the "Active projects" table. Match the path style and tone of the existing rows.

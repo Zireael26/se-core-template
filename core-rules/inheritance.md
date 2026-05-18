@@ -56,6 +56,29 @@ As of Phase C (2026-05-12), seven canonical skills ship: `process-gate`, `securi
 
 Same silent-drop invariant: if the symlink target moves or breaks, the skill simply does not load — no error. Detected by the extended `parent-hook-drift` audit (skills coverage), not at session time.
 
+### Skill path-scoping (optional, project-local)
+
+Canonical skills are global by design — they apply to the whole repo, regardless of which subtree the agent is editing. That works because every canonical skill (process-gate, security-gate, the spec-kit pipeline) is workflow-shaped, not language-shaped.
+
+**Project-local skills can opt into path-scoping.** A project-local skill (one that does NOT come from the canonical symlink — typically lives at `<project>/.claude/skills/<custom-name>/` and is project-owned) may carry a `scope.json` next to its `SKILL.md`:
+
+    {
+      "paths": ["services/**", "pkg/**"],
+      "reason": "Go-only validators; would noise non-Go subtrees"
+    }
+
+When `scope.json` is present, the agent reads it at session start and only auto-mentions the skill when the session's working tree (or the changed files this turn) falls under at least one of the listed globs. The agent still **can** invoke the skill explicitly via `/skill <name>` from any path; the scope only controls auto-invocation.
+
+This is a Trellis convention, not a Claude Code engine feature. The agent is expected to honour it because every project loads `core-rules/CLAUDE.md` and that file directs scope-respecting behaviour. If you find yourself wanting to write a canonical skill with a `scope.json`, the skill is probably mis-shaped — split it into a workflow part (canonical, global) and a stack-specific part (project-local, scoped).
+
+Schema (one entry per skill):
+
+| Field | Required | Meaning |
+|---|---|---|
+| `paths` | yes | Glob array (POSIX-style, project-relative). At least one element. |
+| `reason` | yes | One-line human note for the audit trail. Travels with the file. |
+| `also_active_when` | no | Free-form selector list for follow-up scoping (e.g., `["touched_files: services/**/*.go"]`). Reserved; agent treats as advisory only. |
+
 ## Presets inheritance (opt-in rule layering)
 
 Presets are the rules-side counterpart to the skills inheritance above: opt-in layers that sit on top of the parent CLAUDE.md. Each preset is a single markdown file at `core-rules/presets/<name>.md`. Projects opt in via the `presets` array in `<project>/.trellis.config.json` (or `trellis.config.json`).
